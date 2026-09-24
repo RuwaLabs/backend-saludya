@@ -8,8 +8,6 @@ Backend API builded with Spring Boot
 
 **Database:** PostgreSQL
 
----
-
 ## Database Creation Script
 
 ```sql
