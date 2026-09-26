@@ -37,6 +37,14 @@ public interface ReassignmentOfferRepository {
     List<ReassignmentOffer> findExpiredOffers();
 
     /**
+     * Finds all accepted offers whose window (expiry instant) has passed without the
+     * candidate arriving. These should be declared as no-show.
+     *
+     * @return the list of accepted offers that are overdue for arrival
+     */
+    List<ReassignmentOffer> findAcceptedOverdue();
+
+    /**
      * Persists (creates or updates) an offer.
      *
      * @param offer the offer to persist

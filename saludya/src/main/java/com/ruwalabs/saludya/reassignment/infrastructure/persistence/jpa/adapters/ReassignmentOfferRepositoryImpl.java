@@ -59,6 +59,15 @@ public class ReassignmentOfferRepositoryImpl implements ReassignmentOfferReposit
     }
 
     @Override
+    public List<ReassignmentOffer> findAcceptedOverdue() {
+        return reassignmentOfferPersistenceRepository
+                .findAllByStatusAndExpiresAtBefore(ReassignmentStatus.ACCEPTED, Instant.now())
+                .stream()
+                .map(ReassignmentOfferPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public ReassignmentOffer save(ReassignmentOffer offer) {
         boolean isNew = offer.getId() == null;
         var savedEntity = reassignmentOfferPersistenceRepository

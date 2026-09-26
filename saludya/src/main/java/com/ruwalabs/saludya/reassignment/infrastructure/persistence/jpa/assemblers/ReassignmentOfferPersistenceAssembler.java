@@ -27,6 +27,7 @@ public final class ReassignmentOfferPersistenceAssembler {
                 entity.getAppointmentId(),
                 entity.getOriginalAppointmentId(),
                 entity.getFreedTimeSlotId(),
+                entity.getCandidateTimeSlotId(),
                 entity.getStatus(),
                 entity.getOfferedAt(),
                 entity.getRespondedAt(),
@@ -54,6 +55,7 @@ public final class ReassignmentOfferPersistenceAssembler {
         entity.setAppointmentId(offer.getAppointmentId());
         entity.setOriginalAppointmentId(offer.getOriginalAppointmentId());
         entity.setFreedTimeSlotId(offer.getFreedTimeSlotId());
+        entity.setCandidateTimeSlotId(offer.getCandidateTimeSlotId());
         entity.setStatus(offer.getStatus());
         entity.setOfferedAt(offer.getOfferedAt());
         entity.setRespondedAt(offer.getRespondedAt());

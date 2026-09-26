@@ -1,10 +1,15 @@
 package com.ruwalabs.saludya.reassignment.application.commands;
 
-import java.time.Instant;
+import java.util.Objects;
 
-public record AcceptReassignmentCommand(
-        Long offerId,
-        Long appointmentId,
-        Instant acceptedAt
-) {
+/**
+ * Command to accept a reassignment offer.
+ *
+ * @param offerId the identifier of the offer to accept
+ */
+public record AcceptReassignmentCommand(Long offerId) {
+
+    public AcceptReassignmentCommand {
+        Objects.requireNonNull(offerId, "offerId must not be null");
+    }
 }

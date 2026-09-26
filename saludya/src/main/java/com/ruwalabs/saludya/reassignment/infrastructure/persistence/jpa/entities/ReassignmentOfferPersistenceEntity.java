@@ -37,6 +37,9 @@ public class ReassignmentOfferPersistenceEntity extends AuditableAbstractPersist
     @Column(name = "freed_time_slot_id", nullable = false)
     private Long freedTimeSlotId;
 
+    @Column(name = "candidate_time_slot_id", nullable = false)
+    private Long candidateTimeSlotId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ReassignmentStatus status;
