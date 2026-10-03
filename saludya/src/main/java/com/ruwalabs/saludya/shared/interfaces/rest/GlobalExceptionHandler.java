@@ -1,7 +1,7 @@
 package com.ruwalabs.saludya.shared.interfaces.rest;
 
 import com.ruwalabs.saludya.shared.application.result.ApplicationError;
-import com.acme.center.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import com.ruwalabs.saludya.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
