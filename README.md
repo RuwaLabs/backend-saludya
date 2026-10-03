@@ -9,7 +9,7 @@ role-based sign-in, persistent JWT sessions and logout, contact profiles,
 guardian-linked minors, staff invitations and single-use password recovery.
 
 - Runtime: **Java 25**, Spring Boot 4.1.1 and PostgreSQL.
-- [Setup, API contract, report mapping and integration guide](docs/iam.md)
+- [IAM implementation, API contract and validation results](docs/iam.md)
 - [HTTP request examples](saludya/requests/iam.http)
 - OpenAPI: `http://localhost:8080/swagger-ui.html`
 - Tests: run `./mvnw -B -ntp verify` from `saludya` (`.\\mvnw.cmd` on Windows).
