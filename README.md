@@ -1,6 +1,25 @@
 # backend-saludya
 
-Backend API builded with Spring Boot
+Backend API built with Spring Boot.
+
+## Identity & Access Management (`iam` branch)
+
+IAM implements the report's US-01 through US-06: verified adult registration,
+role-based sign-in, persistent JWT sessions and logout, contact profiles,
+guardian-linked minors, staff invitations and single-use password recovery.
+
+- Runtime: **Java 25**, Spring Boot 4.1.1 and PostgreSQL.
+- [Setup, API contract, report mapping and integration guide](docs/iam.md)
+- [HTTP request examples](saludya/requests/iam.http)
+- OpenAPI: `http://localhost:8080/swagger-ui.html`
+- Tests: run `./mvnw -B -ntp verify` from `saludya` (`.\\mvnw.cmd` on Windows).
+- Optional local PostgreSQL and Mailpit: `docker compose up -d`.
+
+**For IAM, use Flyway with a new database.** The script below documents the original
+cross-context schema; do not also execute it for a fresh IAM installation.
+See the guide for upgrading an existing manually-created schema.
+Development uses synthetic identity fixtures. Production requires a trusted
+identity gateway, SMTP and independent environment secrets.
 
 ---
 
@@ -192,3 +211,4 @@ CREATE INDEX idx_queue_entries_status ON queue_entries (status);
 -- ============================================================
 -- END OF SCRIPT
 -- ============================================================
+```

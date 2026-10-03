@@ -1,0 +1,123 @@
+# Run these requests in order with an HTTP client that supports .http files.
+# Demo identities are synthetic and only enabled in dev/test.
+@base = http://localhost:8080
+@patientToken = REPLACE_WITH_LOGIN_ACCESS_TOKEN
+@adminToken = REPLACE_WITH_SUPER_ADMIN_LOGIN_ACCESS_TOKEN
+@userId = REPLACE_WITH_REGISTERED_USER_ID
+@patientId = REPLACE_WITH_REGISTERED_PATIENT_ID
+@minorLinkId = REPLACE_WITH_CREATED_LINK_ID
+@resetToken = REPLACE_WITH_TOKEN_FROM_MAILPIT
+
+### Verify a patient identity
+POST {{base}}/api/v1/identity-verifications
+Content-Type: application/json
+
+{"dni":"71234821","name":"Lucía","lastname":"Torres","birthDate":"1995-04-15"}
+
+### Register an adult patient - returns patient ID and user ID
+POST {{base}}/api/v1/user-accounts
+Content-Type: application/json
+
+{"dni":"71234821","name":"Lucía","lastname":"Torres","birthDate":"1995-04-15","phone":"987654321","email":"lucia@example.test","password":"Demo1!Password"}
+
+### Sign in - copy accessToken to patientToken
+POST {{base}}/api/v1/user-accounts/login
+Content-Type: application/json
+
+{"email":"lucia@example.test","password":"Demo1!Password","role":"PATIENT"}
+
+### Sign in using DNI - send DNI or email, never both
+POST {{base}}/api/v1/user-accounts/login
+Content-Type: application/json
+
+{"dni":"71234821","password":"Demo1!Password","role":"PATIENT"}
+
+### Read my profile
+GET {{base}}/api/v1/user-accounts/me
+Authorization: Bearer {{patientToken}}
+
+### Update only my own contact details
+PUT {{base}}/api/v1/user-accounts/{{userId}}
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{"email":"lucia@example.test","phone":"912345678"}
+
+### Read my patient profile
+GET {{base}}/api/v1/patients/{{patientId}}
+Authorization: Bearer {{patientToken}}
+
+### Link a minor - returns link ID, minor patient ID and tutor patient ID
+POST {{base}}/api/v1/patient-minors
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{"dni":"87652716","name":"Mateo","lastname":"Torres","birthDate":"2018-04-15","confirmFiliation":true}
+
+### List my minor links
+GET {{base}}/api/v1/patients/{{patientId}}/minors
+Authorization: Bearer {{patientToken}}
+
+### Read my minor link
+GET {{base}}/api/v1/patient-minors/{{minorLinkId}}
+Authorization: Bearer {{patientToken}}
+
+### Unlink without deleting the patient
+DELETE {{base}}/api/v1/patient-minors/{{minorLinkId}}
+Authorization: Bearer {{patientToken}}
+
+### Request recovery - find the email at http://localhost:8025
+POST {{base}}/api/v1/user-accounts/recover-password
+Content-Type: application/json
+
+{"email":"lucia@example.test"}
+
+### Set a new password with the single-use email token (15 minutes)
+POST {{base}}/api/v1/user-accounts/reset-password
+Content-Type: application/json
+
+{"token":"{{resetToken}}","password":"Updated1!Password","confirmPassword":"Updated1!Password"}
+
+### Contact support when both email and phone are inaccessible
+GET {{base}}/api/v1/account-recovery-requests/support
+
+### Record an assisted recovery request - does not grant access
+POST {{base}}/api/v1/account-recovery-requests
+Content-Type: application/json
+
+{"dni":"71234821","contactEmail":"lucia-new@example.test"}
+
+### Super admin sign-in - password must match the operator bootstrap configuration
+POST {{base}}/api/v1/user-accounts/login
+Content-Type: application/json
+
+{"email":"admin@example.test","password":"REPLACE_WITH_BOOTSTRAP_PASSWORD","role":"SUPER_ADMIN"}
+
+### Create admission staff - password setup invitation goes to Mailpit
+POST {{base}}/api/v1/user-accounts/staff
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"dni":"87654321","name":"Diego","lastname":"Ramos","birthDate":"1990-06-20","phone":"987654321","email":"staff@example.test"}
+
+### Administrator lists requests before verifying the physical DNI
+GET {{base}}/api/v1/account-recovery-requests
+Authorization: Bearer {{adminToken}}
+
+### Administrator approves only after checking the physical DNI and intended email
+POST {{base}}/api/v1/account-recovery-requests/REPLACE_WITH_REQUEST_ID/resolve
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"identityCheckedInPerson":true}
+
+### Change my password - obtain a fresh token first if recovery revoked my sessions
+POST {{base}}/api/v1/user-accounts/change-password
+Authorization: Bearer {{patientToken}}
+Content-Type: application/json
+
+{"currentPassword":"Updated1!Password","password":"Changed1!Password","confirmPassword":"Changed1!Password"}
+
+### Sign out - invalidates only this session
+POST {{base}}/api/v1/user-accounts/logout
+Authorization: Bearer {{patientToken}}

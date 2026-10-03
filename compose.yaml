@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-saludyadb}
+      POSTGRES_USER: ${DB_USER:-saludya}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-saludya-dev}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - saludya_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-saludya} -d ${POSTGRES_DB:-saludyadb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+volumes:
+  saludya_postgres:
