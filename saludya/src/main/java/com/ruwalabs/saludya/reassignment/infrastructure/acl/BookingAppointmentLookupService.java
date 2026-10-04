@@ -20,8 +20,8 @@ public class BookingAppointmentLookupService implements AppointmentLookupService
     }
 
     @Override
-    public Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId) {
-        return bookingContextFacade.findNextCandidateByBookingOrder(freedTimeSlotId);
+    public Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId, Long excludeAppointmentId) {
+        return bookingContextFacade.findNextCandidateByBookingOrder(freedTimeSlotId, excludeAppointmentId);
     }
 
     @Override
@@ -33,6 +33,18 @@ public class BookingAppointmentLookupService implements AppointmentLookupService
     public Optional<Long> patientOfAppointment(Long appointmentId) {
         return bookingContextFacade.findAppointmentInfo(appointmentId)
                 .map(BookingContextFacade.AppointmentInfo::patientId);
+    }
+
+    @Override
+    public Optional<java.time.Instant> slotStartOfAppointment(Long appointmentId) {
+        return bookingContextFacade.findAppointmentInfo(appointmentId)
+                .flatMap(info -> Optional.ofNullable(info.slotStart()));
+    }
+
+    @Override
+    public Optional<String> statusOfAppointment(Long appointmentId) {
+        return bookingContextFacade.findAppointmentInfo(appointmentId)
+                .map(BookingContextFacade.AppointmentInfo::status);
     }
 
     @Override

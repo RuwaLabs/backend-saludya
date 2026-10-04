@@ -72,12 +72,13 @@ public class BookingContextFacade {
     /**
      * Finds the next candidate for a freed slot: the active appointment with the
      * lowest {@code bookingOrder} in the same specialty, excluding appointments
-     * already in the freed slot.
+     * already in the freed slot and the given appointment.
      *
-     * @param freedTimeSlotId the freed time slot identifier
+     * @param freedTimeSlotId     the freed time slot identifier
+     * @param excludeAppointmentId an appointment to exclude (e.g. the one that just moved), nullable
      * @return the candidate appointment id, if any
      */
-    public Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId) {
+    public Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId, Long excludeAppointmentId) {
         var timeSlot = timeSlotRepository.findById(freedTimeSlotId).orElse(null);
         if (timeSlot == null) {
             return Optional.empty();
@@ -88,6 +89,7 @@ public class BookingContextFacade {
         }
         return appointmentRepository.findActiveBySpecialtyId(doctor.getSpecialtyId()).stream()
                 .filter(a -> !a.getTimeSlotId().equals(freedTimeSlotId))
+                .filter(a -> excludeAppointmentId == null || !a.getId().equals(excludeAppointmentId))
                 .min(Comparator.comparingInt(a -> a.getBookingOrder().value()))
                 .map(Appointment::getId);
     }

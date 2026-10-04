@@ -39,7 +39,8 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
     @Override
     @Transactional
     public Optional<Long> sendReassignmentOffer(SendReassignmentOfferCommand command) {
-        var candidate = appointmentLookupService.findNextCandidateByBookingOrder(command.freedTimeSlotId());
+        var candidate = appointmentLookupService.findNextCandidateByBookingOrder(
+                command.freedTimeSlotId(), command.originalAppointmentId());
         if (candidate.isEmpty()) {
             // No candidate in the booking queue: the slot stays closed.
             return Optional.empty();
@@ -96,5 +97,46 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
                 })
                 .orElseGet(() -> Result.failure(
                         ApplicationError.notFound("ReassignmentOffer", command.offerId().toString())));
+    }
+
+    @Override
+    @Transactional
+    public int detectNoShows() {
+        var now = Instant.now();
+        var toleranceMinutes = hospitalConfigurationService.checkInToleranceMinutes();
+        var graceMinutes = hospitalConfigurationService.reassignmentResponseTimeoutMinutes();
+        int count = 0;
+
+        for (var offer : reassignmentOfferRepository.findAllAccepted()) {
+            // Safeguard: if the candidate already arrived (present/attended), skip.
+            var status = appointmentLookupService.statusOfAppointment(offer.getAppointmentId()).orElse(null);
+            if ("CONFIRMED".equals(status) || "ATTENDED".equals(status)) {
+                continue;
+            }
+
+            // Arrival deadline: destination slot start + check-in tolerance.
+            var slotStart = appointmentLookupService.slotStartOfAppointment(offer.getAppointmentId()).orElse(null);
+            Instant deadline;
+            if (slotStart != null) {
+                deadline = slotStart.plus(Duration.ofMinutes(toleranceMinutes));
+                // Safeguard: minimum grace from acceptance when the slot already started.
+                if (offer.getRespondedAt() != null) {
+                    var minimumDeadline = offer.getRespondedAt().plus(Duration.ofMinutes(graceMinutes));
+                    if (deadline.isBefore(minimumDeadline)) {
+                        deadline = minimumDeadline;
+                    }
+                }
+            } else {
+                // Safeguard: fall back to the response window when the slot is unknown.
+                deadline = offer.getExpiresAt();
+            }
+
+            if (now.isAfter(deadline)) {
+                offer.markNoShow();
+                reassignmentOfferRepository.save(offer);
+                count++;
+            }
+        }
+        return count;
     }
 }

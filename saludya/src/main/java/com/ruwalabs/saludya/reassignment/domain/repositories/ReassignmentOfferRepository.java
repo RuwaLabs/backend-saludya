@@ -37,6 +37,21 @@ public interface ReassignmentOfferRepository {
     List<ReassignmentOffer> findAllPending();
 
     /**
+     * Finds the accepted offer of a candidate appointment, if any.
+     *
+     * @param appointmentId the candidate appointment identifier
+     * @return the accepted offer, if present
+     */
+    Optional<ReassignmentOffer> findAcceptedByAppointment(Long appointmentId);
+
+    /**
+     * Finds all accepted offers.
+     *
+     * @return the list of accepted offers
+     */
+    List<ReassignmentOffer> findAllAccepted();
+
+    /**
      * Finds all pending offers whose expiry instant has already passed.
      *
      * @return the list of pending offers that should be expired

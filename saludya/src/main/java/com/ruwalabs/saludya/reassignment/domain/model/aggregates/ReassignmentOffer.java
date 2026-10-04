@@ -227,16 +227,14 @@ public class ReassignmentOffer extends AbstractDomainAggregateRoot<ReassignmentO
 
     /**
      * Marks the accepted candidate as absent (no-show) because they did not arrive
-     * within the window.
+     * within the arrival window. The arrival deadline is evaluated by the application
+     * layer (destination slot start + check-in tolerance).
      *
-     * @throws IllegalStateException if the offer is not {@code ACCEPTED} or the window has not closed yet
+     * @throws IllegalStateException if the offer is not {@code ACCEPTED}
      */
     public void markNoShow() {
         if (!isAccepted()) {
             throw new IllegalStateException("Reassignment offer is not accepted");
-        }
-        if (!isExpired()) {
-            throw new IllegalStateException("Reassignment offer window has not closed yet");
         }
         this.status = ReassignmentStatus.ABSENT;
         registerDomainEvent(new ReassignmentOfferNoShowEvent(

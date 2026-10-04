@@ -11,10 +11,11 @@ public interface AppointmentLookupService {
     /**
      * Finds the next candidate appointment for a freed slot, ordered by {@code bookingOrder}.
      *
-     * @param freedTimeSlotId the freed time slot identifier
+     * @param freedTimeSlotId      the freed time slot identifier
+     * @param excludeAppointmentId an appointment to exclude (e.g. the one that just moved), nullable
      * @return the candidate appointment id with the lowest {@code bookingOrder}, or empty if none
      */
-    Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId);
+    Optional<Long> findNextCandidateByBookingOrder(Long freedTimeSlotId, Long excludeAppointmentId);
 
     /**
      * Returns the time slot currently occupied by a given appointment.
@@ -31,6 +32,22 @@ public interface AppointmentLookupService {
      * @return the patient identifier, if the appointment exists
      */
     Optional<Long> patientOfAppointment(Long appointmentId);
+
+    /**
+     * Returns the instant the appointment's time slot starts.
+     *
+     * @param appointmentId the appointment identifier
+     * @return the slot start instant, if available
+     */
+    Optional<java.time.Instant> slotStartOfAppointment(Long appointmentId);
+
+    /**
+     * Returns the current status of the appointment (e.g. RESERVED, CONFIRMED, ATTENDED).
+     *
+     * @param appointmentId the appointment identifier
+     * @return the status name, if the appointment exists
+     */
+    Optional<String> statusOfAppointment(Long appointmentId);
 
     /**
      * Moves the candidate's appointment to the freed slot.

@@ -40,4 +40,12 @@ public interface ReassignmentCommandService {
      * @return the rejected offer, or an application error
      */
     Result<ReassignmentOffer, ApplicationError> rejectReassignment(RejectReassignmentCommand command);
+
+    /**
+     * Detects accepted offers whose candidate did not arrive within the arrival window
+     * (destination slot start + check-in tolerance) and marks them as no-show.
+     *
+     * @return the number of offers marked as no-show
+     */
+    int detectNoShows();
 }

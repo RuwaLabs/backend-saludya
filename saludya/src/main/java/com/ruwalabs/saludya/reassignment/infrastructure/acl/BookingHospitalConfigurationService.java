@@ -21,4 +21,9 @@ public class BookingHospitalConfigurationService implements HospitalConfiguratio
     public int reassignmentResponseTimeoutMinutes() {
         return configurationContextFacade.reassignmentResponseTimeoutMin();
     }
+
+    @Override
+    public int checkInToleranceMinutes() {
+        return configurationContextFacade.checkInToleranceMinutes();
+    }
 }

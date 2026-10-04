@@ -13,4 +13,12 @@ public interface HospitalConfigurationService {
      * @return the reassignment window, in minutes
      */
     int reassignmentResponseTimeoutMinutes();
+
+    /**
+     * Returns the check-in tolerance (in minutes) after a time slot starts. It defines
+     * the arrival deadline for an accepted reassignment candidate.
+     *
+     * @return the check-in tolerance, in minutes
+     */
+    int checkInToleranceMinutes();
 }

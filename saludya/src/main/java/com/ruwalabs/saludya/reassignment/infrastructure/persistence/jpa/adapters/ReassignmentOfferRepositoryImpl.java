@@ -59,6 +59,24 @@ public class ReassignmentOfferRepositoryImpl implements ReassignmentOfferReposit
     }
 
     @Override
+    public Optional<ReassignmentOffer> findAcceptedByAppointment(Long appointmentId) {
+        return reassignmentOfferPersistenceRepository
+                .findAllByAppointmentIdAndStatus(appointmentId, ReassignmentStatus.ACCEPTED)
+                .stream()
+                .findFirst()
+                .map(ReassignmentOfferPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public List<ReassignmentOffer> findAllAccepted() {
+        return reassignmentOfferPersistenceRepository
+                .findAllByStatus(ReassignmentStatus.ACCEPTED)
+                .stream()
+                .map(ReassignmentOfferPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public List<ReassignmentOffer> findExpiredOffers() {
         return reassignmentOfferPersistenceRepository
                 .findAllByStatusAndExpiresAtBefore(ReassignmentStatus.PENDING, Instant.now())
