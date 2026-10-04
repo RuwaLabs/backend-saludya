@@ -64,6 +64,16 @@ public record ApplicationError(
     }
 
     /**
+     * Forbidden error: the caller is not allowed to perform the operation
+     */
+    public static ApplicationError forbidden(String resource, String reason) {
+        return new ApplicationError(
+                "FORBIDDEN",
+                "Access denied to %s".formatted(resource),
+                reason);
+    }
+
+    /**
      * Unexpected error: something went wrong that shouldn't have
      */
     public static ApplicationError unexpected(String context, String reason) {

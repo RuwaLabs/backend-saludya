@@ -21,6 +21,17 @@ public interface AppointmentRepository {
 
     List<Appointment> findActiveBySpecialtyId(Long specialtyId);
 
+    /**
+     * Finds appointments by optional filters (all may be null).
+     */
+    List<Appointment> findFiltered(
+            Long patientId,
+            Long timeSlotId,
+            Long doctorId,
+            Long specialtyId,
+            java.time.LocalDate date,
+            AppointmentStatus status);
+
     int getNextBookingOrderBySpecialty(Long specialtyId);
 
     boolean existsActiveByPatientAndTimeSlot(Long patientId, Long timeSlotId);

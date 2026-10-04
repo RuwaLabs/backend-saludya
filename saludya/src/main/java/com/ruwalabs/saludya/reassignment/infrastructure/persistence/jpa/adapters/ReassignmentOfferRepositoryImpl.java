@@ -50,6 +50,15 @@ public class ReassignmentOfferRepositoryImpl implements ReassignmentOfferReposit
     }
 
     @Override
+    public List<ReassignmentOffer> findAllPending() {
+        return reassignmentOfferPersistenceRepository
+                .findAllByStatus(ReassignmentStatus.PENDING)
+                .stream()
+                .map(ReassignmentOfferPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public List<ReassignmentOffer> findExpiredOffers() {
         return reassignmentOfferPersistenceRepository
                 .findAllByStatusAndExpiresAtBefore(ReassignmentStatus.PENDING, Instant.now())

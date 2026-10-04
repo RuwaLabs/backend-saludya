@@ -2,12 +2,12 @@ package com.ruwalabs.saludya.shared.infrastructure.documentation.openapi.configu
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,14 +19,13 @@ import java.util.List;
 @Configuration
 public class OpenApiConfiguration {
 
-    @Value("${spring.application.name}")
-    String applicationName;
-
-    @Value("${documentation.application.description}")
-    String applicationDescription;
-
-    @Value("${documentation.application.version}")
-    String applicationVersion;
+    private static final String API_TITLE = "SaludYa API";
+    private static final String API_DESCRIPTION = "Backend API de SaludYa — plataforma de gestión de citas médicas y "
+            + "control de sala de espera para establecimientos públicos de salud. Expone los bounded contexts "
+            + "Identity & Access Management, Appointments & Booking, Reassignment, Arrival & QR Check-in y "
+            + "Hospital Operations & Configuration.";
+    private static final String API_VERSION = "v1.0.0";
+    private static final String SECURITY_SCHEME_NAME = "bearerAuth";
 
     /**
      * Builds the OpenAPI document used by Swagger UI and client generation tools.
@@ -40,9 +39,12 @@ public class OpenApiConfiguration {
 
         openApi
                 .info(new Info()
-                        .title(this.applicationName)
-                        .description(this.applicationDescription)
-                        .version(this.applicationVersion)
+                        .title(API_TITLE)
+                        .description(API_DESCRIPTION)
+                        .version(API_VERSION)
+                        .contact(new Contact()
+                                .name("RuwaLabs")
+                                .url("https://github.com/RuwaLabs"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")));
@@ -53,15 +55,13 @@ public class OpenApiConfiguration {
                         .description("Local Development Environment")
         ));
 
-        final String securitySchemeName = "bearerAuth";
-
         openApi
                 .addSecurityItem(new SecurityRequirement()
-                        .addList(securitySchemeName))
+                        .addList(SECURITY_SCHEME_NAME))
                 .components(new Components()
-                        .addSecuritySchemes(securitySchemeName,
+                        .addSecuritySchemes(SECURITY_SCHEME_NAME,
                                 new SecurityScheme()
-                                        .name(securitySchemeName)
+                                        .name(SECURITY_SCHEME_NAME)
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")

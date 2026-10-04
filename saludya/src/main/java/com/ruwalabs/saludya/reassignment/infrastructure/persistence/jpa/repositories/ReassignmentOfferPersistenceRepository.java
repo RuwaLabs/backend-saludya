@@ -25,6 +25,14 @@ public interface ReassignmentOfferPersistenceRepository
     List<ReassignmentOfferPersistenceEntity> findAllByAppointmentIdAndStatus(Long appointmentId, ReassignmentStatus status);
 
     /**
+     * Finds all offers of a given status.
+     *
+     * @param status the offer status
+     * @return the list of matching offers
+     */
+    List<ReassignmentOfferPersistenceEntity> findAllByStatus(ReassignmentStatus status);
+
+    /**
      * Finds all offers of a given status whose expiry instant is before the given instant.
      *
      * @param status the offer status

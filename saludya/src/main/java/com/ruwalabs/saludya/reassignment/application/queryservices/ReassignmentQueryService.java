@@ -27,4 +27,13 @@ public interface ReassignmentQueryService {
      * @return the list of pending offers for that appointment
      */
     List<ReassignmentOffer> handle(GetPendingOffersByAppointmentQuery query);
+
+    /**
+     * Retrieves all pending offers whose candidate appointment belongs to a patient
+     * managed by the authenticated caller. Used by the app as the reassignment
+     * notification list.
+     *
+     * @return the list of pending offers for the current user
+     */
+    List<ReassignmentOffer> getPendingForCurrentUser();
 }

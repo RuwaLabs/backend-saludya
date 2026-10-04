@@ -20,7 +20,7 @@ import java.util.Objects;
 public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
 
     private Long id;
-    private final Long timeSlotId;
+    private Long timeSlotId;
     private final Long patientId;
     private final BookingOrder bookingOrder;
     private AppointmentStatus status;
@@ -114,6 +114,17 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
     public void markAsAttended() {
         assertActive();
         this.status = AppointmentStatus.ATTENDED;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Moves the appointment to another time slot (used by the reassignment protocol).
+     *
+     * @param newTimeSlotId the target time slot identifier
+     */
+    public void moveTo(Long newTimeSlotId) {
+        assertActive();
+        this.timeSlotId = Objects.requireNonNull(newTimeSlotId, "newTimeSlotId cannot be null");
         this.updatedAt = Instant.now();
     }
 

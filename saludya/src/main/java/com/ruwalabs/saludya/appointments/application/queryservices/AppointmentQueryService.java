@@ -3,6 +3,7 @@ package com.ruwalabs.saludya.appointments.application.queryservices;
 import com.ruwalabs.saludya.appointments.application.queries.GetAppointmentByIdQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetAppointmentsByPatientQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetAppointmentsByTimeSlotQuery;
+import com.ruwalabs.saludya.appointments.application.queries.GetFilteredAppointmentsQuery;
 import com.ruwalabs.saludya.appointments.domain.model.aggregates.Appointment;
 
 import java.util.List;
@@ -18,4 +19,6 @@ public interface AppointmentQueryService {
     List<Appointment> getByPatient(GetAppointmentsByPatientQuery query);
 
     List<Appointment> getByTimeSlot(GetAppointmentsByTimeSlotQuery query);
+
+    List<Appointment> getFiltered(GetFilteredAppointmentsQuery query);
 }

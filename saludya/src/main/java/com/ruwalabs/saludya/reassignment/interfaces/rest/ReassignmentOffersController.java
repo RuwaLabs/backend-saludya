@@ -42,15 +42,22 @@ public class ReassignmentOffersController {
     }
 
     /**
-     * Lists the pending offers of a candidate appointment.
+     * Lists the pending offers of the authenticated user (their own appointments and
+     * those of the minors they tutor). If {@code appointmentId} is provided, the list
+     * is narrowed to that appointment. This backs the in-app reassignment notifications.
      *
-     * @param appointmentId the candidate patient's appointment identifier
-     * @return the list of pending offers for that appointment
+     * @param appointmentId optional candidate appointment filter
+     * @return the list of pending offers
      */
     @GetMapping("/pending")
-    public List<ReassignmentOfferResource> getPendingOffers(@RequestParam Long appointmentId) {
-        return reassignmentQueryService.handle(new GetPendingOffersByAppointmentQuery(appointmentId))
-                .stream()
+    public List<ReassignmentOfferResource> getPendingOffers(@RequestParam(required = false) Long appointmentId) {
+        var offers = reassignmentQueryService.getPendingForCurrentUser();
+        if (appointmentId != null) {
+            offers = offers.stream()
+                    .filter(offer -> offer.getAppointmentId().equals(appointmentId))
+                    .toList();
+        }
+        return offers.stream()
                 .map(ReassignmentOfferResourceAssembler::toResource)
                 .toList();
     }

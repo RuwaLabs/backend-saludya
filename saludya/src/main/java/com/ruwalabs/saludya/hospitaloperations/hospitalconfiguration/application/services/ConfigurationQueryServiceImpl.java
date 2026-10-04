@@ -1,5 +1,6 @@
 package com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.application.services;
 
+import com.ruwalabs.saludya.appointments.interfaces.acl.BookingContextFacade;
 import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.application.queries.GenerateReportQuery;
 import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.application.queries.GetDashboardQuery;
 import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.domain.model.aggregates.HospitalConfiguration;
@@ -21,13 +22,16 @@ public class ConfigurationQueryServiceImpl
 
     private final HospitalConfigurationRepository repository;
     private final ReportGeneratorAdapter reportGenerator;
+    private final BookingContextFacade bookingContextFacade;
 
     public ConfigurationQueryServiceImpl(
             HospitalConfigurationRepository repository,
-            ReportGeneratorAdapter reportGenerator
+            ReportGeneratorAdapter reportGenerator,
+            BookingContextFacade bookingContextFacade
     ) {
         this.repository = repository;
         this.reportGenerator = reportGenerator;
+        this.bookingContextFacade = bookingContextFacade;
     }
 
     @Override
@@ -74,12 +78,22 @@ public class ConfigurationQueryServiceImpl
 
         HospitalConfiguration configuration = getConfiguration();
 
-        /*
-         * Appointment, attendance and reassignment metrics belong
-         * to other bounded contexts and will be integrated later.
-         *
-         * No fake metrics are generated here.
-         */
+        var appointments = bookingContextFacade.findAppointmentsByDate(query.date());
+        long scheduled = appointments.size();
+        long pending = appointments.stream()
+                .filter(a -> a.status().equals("RESERVED") || a.status().equals("CONFIRMED"))
+                .count();
+        long cancelled = appointments.stream().filter(a -> a.status().equals("CANCELLED")).count();
+        long attended = appointments.stream().filter(a -> a.status().equals("ATTENDED")).count();
+        long absent = appointments.stream().filter(a -> a.status().equals("ABSENT")).count();
+
+        var metrics = List.of(
+                new DashboardMetric("scheduledToday", scheduled),
+                new DashboardMetric("pendingToday", pending),
+                new DashboardMetric("cancelledToday", cancelled),
+                new DashboardMetric("attendedToday", attended),
+                new DashboardMetric("absentToday", absent));
+
         return new DashboardResult(
                 configuration.getId(),
                 configuration.getMaxCapacityPerSlot(),
@@ -90,8 +104,8 @@ public class ConfigurationQueryServiceImpl
                 configuration.getBookingCutoffTime().toString(),
                 configuration.getCancellationDeadlineHours(),
                 configuration.isAttendanceQueueVisible(),
-                List.of(),
-                false
+                metrics,
+                true
         );
     }
 }

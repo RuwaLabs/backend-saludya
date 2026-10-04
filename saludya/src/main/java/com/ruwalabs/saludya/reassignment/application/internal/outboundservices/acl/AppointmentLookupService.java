@@ -3,21 +3,13 @@ package com.ruwalabs.saludya.reassignment.application.internal.outboundservices.
 import java.util.Optional;
 
 /**
- * Port for reading appointment data owned by the {@code Appointments & Booking}
- * bounded context.
- *
- * <p>The reassignment works over the "cola de reserva" (booking queue): candidates are
- * ordered by {@code bookingOrder}, not by next time slot. The concrete implementation
- * will call the Booking context facade; for now an in-memory stub is provided so the
- * Reassignment context can run independently.</p>
+ * ACL port for reading and updating appointment data owned by the
+ * {@code Appointments & Booking} bounded context.
  */
 public interface AppointmentLookupService {
 
     /**
      * Finds the next candidate appointment for a freed slot, ordered by {@code bookingOrder}.
-     *
-     * <p>The specialty is derived internally from the freed slot by the underlying
-     * context (Booking). Candidates already in the freed slot are excluded.</p>
      *
      * @param freedTimeSlotId the freed time slot identifier
      * @return the candidate appointment id with the lowest {@code bookingOrder}, or empty if none
@@ -27,11 +19,31 @@ public interface AppointmentLookupService {
     /**
      * Returns the time slot currently occupied by a given appointment.
      *
-     * <p>Used to fill the {@code candidateTimeSlotId} of the offer: it becomes the next
-     * freed slot in the chain when the candidate accepts.</p>
-     *
      * @param appointmentId the candidate patient's appointment identifier
      * @return the time slot identifier of that appointment
      */
     Long timeSlotOfAppointment(Long appointmentId);
+
+    /**
+     * Returns the patient profile that owns a given appointment.
+     *
+     * @param appointmentId the appointment identifier
+     * @return the patient identifier, if the appointment exists
+     */
+    Optional<Long> patientOfAppointment(Long appointmentId);
+
+    /**
+     * Moves the candidate's appointment to the freed slot.
+     *
+     * @param appointmentId    the candidate appointment identifier
+     * @param targetTimeSlotId the freed time slot identifier
+     */
+    void moveAppointment(Long appointmentId, Long targetTimeSlotId);
+
+    /**
+     * Marks the candidate's appointment as absent (accepted but never arrived).
+     *
+     * @param appointmentId the candidate appointment identifier
+     */
+    void markAbsent(Long appointmentId);
 }

@@ -30,6 +30,13 @@ public interface ReassignmentOfferRepository {
     List<ReassignmentOffer> findPendingByAppointment(Long appointmentId);
 
     /**
+     * Finds all pending offers.
+     *
+     * @return the list of pending offers
+     */
+    List<ReassignmentOffer> findAllPending();
+
+    /**
      * Finds all pending offers whose expiry instant has already passed.
      *
      * @return the list of pending offers that should be expired
