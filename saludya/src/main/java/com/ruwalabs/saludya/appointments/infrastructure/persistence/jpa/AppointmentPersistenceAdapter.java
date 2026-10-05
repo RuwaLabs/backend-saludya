@@ -70,6 +70,11 @@ public class AppointmentPersistenceAdapter implements AppointmentRepository {
     }
 
     @Override
+    public Optional<Appointment> findByBookingCode(String bookingCode) {
+        return repository.findByBookingCode(bookingCode).map(AppointmentPersistenceMapper::toDomain);
+    }
+
+    @Override
     public List<Appointment> findByPatientId(Long patientId) {
         return repository.findByPatientId(patientId).stream()
                 .map(AppointmentPersistenceMapper::toDomain)

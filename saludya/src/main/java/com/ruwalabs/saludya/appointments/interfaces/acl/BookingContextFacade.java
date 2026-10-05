@@ -3,6 +3,7 @@ package com.ruwalabs.saludya.appointments.interfaces.acl;
 import com.ruwalabs.saludya.appointments.domain.model.aggregates.Appointment;
 import com.ruwalabs.saludya.appointments.domain.model.repositories.AppointmentRepository;
 import com.ruwalabs.saludya.appointments.domain.model.repositories.DoctorRepository;
+import com.ruwalabs.saludya.appointments.domain.model.repositories.SpecialtyRepository;
 import com.ruwalabs.saludya.appointments.domain.model.repositories.TimeSlotRepository;
 import org.springframework.stereotype.Service;
 
@@ -37,24 +38,41 @@ public class BookingContextFacade {
             Long timeSlotId,
             Long patientId,
             String status,
-            Instant slotStart) {
+            Instant slotStart,
+            String bookingCode,
+            String specialtyName,
+            String doctorName,
+            String room) {
     }
 
     private final AppointmentRepository appointmentRepository;
     private final TimeSlotRepository timeSlotRepository;
     private final DoctorRepository doctorRepository;
+    private final SpecialtyRepository specialtyRepository;
 
     public BookingContextFacade(
             AppointmentRepository appointmentRepository,
             TimeSlotRepository timeSlotRepository,
-            DoctorRepository doctorRepository) {
+            DoctorRepository doctorRepository,
+            SpecialtyRepository specialtyRepository) {
         this.appointmentRepository = appointmentRepository;
         this.timeSlotRepository = timeSlotRepository;
         this.doctorRepository = doctorRepository;
+        this.specialtyRepository = specialtyRepository;
     }
 
     public Optional<AppointmentInfo> findAppointmentInfo(Long appointmentId) {
         return appointmentRepository.findById(appointmentId).map(this::toInfo);
+    }
+
+    /**
+     * Finds appointment information by its unique reservation code.
+     *
+     * @param bookingCode the reservation code
+     * @return the appointment info, if present
+     */
+    public Optional<AppointmentInfo> findAppointmentInfoByBookingCode(String bookingCode) {
+        return appointmentRepository.findByBookingCode(bookingCode).map(this::toInfo);
     }
 
     /**
@@ -147,14 +165,31 @@ public class BookingContextFacade {
     }
 
     private AppointmentInfo toInfo(Appointment appointment) {
-        var slotStart = timeSlotRepository.findById(appointment.getTimeSlotId())
-                .map(slot -> slot.getDate().atTime(slot.getStartHour()).atZone(ZONE).toInstant())
-                .orElse(null);
+        var timeSlot = timeSlotRepository.findById(appointment.getTimeSlotId()).orElse(null);
+        var slotStart = timeSlot == null
+                ? null
+                : timeSlot.getDate().atTime(timeSlot.getStartHour()).atZone(ZONE).toInstant();
+        String room = timeSlot == null ? null : timeSlot.getRoom();
+        String specialtyName = null;
+        String doctorName = null;
+        if (timeSlot != null) {
+            var doctor = doctorRepository.findById(timeSlot.getDoctorId()).orElse(null);
+            if (doctor != null) {
+                doctorName = (doctor.getName() + " " + doctor.getLastname()).trim();
+                specialtyName = specialtyRepository.findById(doctor.getSpecialtyId())
+                        .map(specialty -> specialty.getName())
+                        .orElse(null);
+            }
+        }
         return new AppointmentInfo(
                 appointment.getId(),
                 appointment.getTimeSlotId(),
                 appointment.getPatientId(),
                 appointment.getStatus().name(),
-                slotStart);
+                slotStart,
+                appointment.getBookingCode(),
+                specialtyName,
+                doctorName,
+                room);
     }
 }

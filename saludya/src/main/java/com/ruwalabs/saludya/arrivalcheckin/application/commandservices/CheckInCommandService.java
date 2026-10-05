@@ -1,6 +1,7 @@
 package com.ruwalabs.saludya.arrivalcheckin.application.commandservices;
 
 import com.ruwalabs.saludya.arrivalcheckin.application.commands.DeclareAbsenceCommand;
+import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInByBookingCodeCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.model.CheckInResult;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.entities.QueueEntry;
@@ -13,6 +14,9 @@ import com.ruwalabs.saludya.shared.application.result.Result;
 public interface CheckInCommandService {
 
     Result<CheckInResult, ApplicationError> registerCheckIn(RegisterCheckInCommand command);
+
+    Result<CheckInResult, ApplicationError> registerCheckInByBookingCode(
+            RegisterCheckInByBookingCodeCommand command);
 
     Result<Void, ApplicationError> declareAbsence(DeclareAbsenceCommand command);
 

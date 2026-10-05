@@ -8,12 +8,15 @@ import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotsByDocto
 import com.ruwalabs.saludya.appointments.interfaces.rest.resources.CreateTimeSlotResource;
 import com.ruwalabs.saludya.appointments.interfaces.rest.resources.TimeSlotResource;
 import com.ruwalabs.saludya.appointments.interfaces.rest.resources.UpdateTimeSlotCapacityResource;
+import com.ruwalabs.saludya.appointments.interfaces.rest.resources.UpdateTimeSlotResource;
 import com.ruwalabs.saludya.appointments.interfaces.rest.transform.CreateTimeSlotCommandFromResourceAssembler;
 import com.ruwalabs.saludya.appointments.interfaces.rest.transform.TimeSlotResourceFromEntityAssembler;
 import com.ruwalabs.saludya.appointments.interfaces.rest.transform.UpdateTimeSlotCapacityCommandFromResourceAssembler;
+import com.ruwalabs.saludya.appointments.interfaces.rest.transform.UpdateTimeSlotCommandFromResourceAssembler;
 import com.ruwalabs.saludya.shared.application.result.ApplicationError;
 import com.ruwalabs.saludya.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import com.ruwalabs.saludya.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -102,6 +105,19 @@ public class TimeSlotsController {
         var command = UpdateTimeSlotCapacityCommandFromResourceAssembler
                 .toCommandFromResource(id, resource);
         var result = commandService.updateCapacity(command);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                TimeSlotResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Edit a time slot (doctor, schedule and status)")
+    public ResponseEntity<?> updateTimeSlot(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTimeSlotResource resource) {
+        var command = UpdateTimeSlotCommandFromResourceAssembler.toCommandFromResource(id, resource);
+        var result = commandService.update(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
                 TimeSlotResourceFromEntityAssembler::toResourceFromEntity,

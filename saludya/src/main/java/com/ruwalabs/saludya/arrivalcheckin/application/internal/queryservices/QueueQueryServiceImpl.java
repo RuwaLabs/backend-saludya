@@ -1,12 +1,15 @@
 package com.ruwalabs.saludya.arrivalcheckin.application.internal.queryservices;
 
+import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetAttendanceQueueBySlotAndDateQuery;
 import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetQueueEntriesQuery;
 import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetQueueEntryByIdQuery;
 import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetQueuePositionQuery;
 import com.ruwalabs.saludya.arrivalcheckin.application.queryservices.QueueQueryService;
+import com.ruwalabs.saludya.arrivalcheckin.domain.model.aggregates.AttendanceQueue;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.entities.QueueEntry;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.valueobjects.QueueEntryStatus;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.valueobjects.QueuePosition;
+import com.ruwalabs.saludya.arrivalcheckin.domain.repositories.AttendanceQueueRepository;
 import com.ruwalabs.saludya.arrivalcheckin.domain.repositories.CheckInRepository;
 import com.ruwalabs.saludya.arrivalcheckin.domain.repositories.QueueEntryRepository;
 import org.springframework.stereotype.Service;
@@ -22,12 +25,15 @@ public class QueueQueryServiceImpl implements QueueQueryService {
 
     private final QueueEntryRepository queueEntryRepository;
     private final CheckInRepository checkInRepository;
+    private final AttendanceQueueRepository attendanceQueueRepository;
 
     public QueueQueryServiceImpl(
             QueueEntryRepository queueEntryRepository,
-            CheckInRepository checkInRepository) {
+            CheckInRepository checkInRepository,
+            AttendanceQueueRepository attendanceQueueRepository) {
         this.queueEntryRepository = queueEntryRepository;
         this.checkInRepository = checkInRepository;
+        this.attendanceQueueRepository = attendanceQueueRepository;
     }
 
     @Override
@@ -47,6 +53,11 @@ public class QueueQueryServiceImpl implements QueueQueryService {
                 .map(entry -> new QueuePosition(
                         entry.getPosition(),
                         (int) queueEntryRepository.countByAttendanceQueue(query.attendanceQueueId())));
+    }
+
+    @Override
+    public Optional<AttendanceQueue> handle(GetAttendanceQueueBySlotAndDateQuery query) {
+        return attendanceQueueRepository.findByTimeSlotAndDate(query.timeSlotId(), query.date());
     }
 
     @Override

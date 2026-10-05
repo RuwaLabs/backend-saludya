@@ -18,6 +18,7 @@ public final class TimeSlotResourceFromEntityAssembler {
                 entity.getDate(),
                 entity.getStartHour(),
                 entity.getEndHour(),
+                entity.getRoom(),
                 entity.getMaxCapacity(),
                 entity.getCurrentBookings(),
                 entity.getStatus().name());

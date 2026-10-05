@@ -15,6 +15,8 @@ public interface AppointmentRepository {
 
     Optional<Appointment> findById(Long id);
 
+    Optional<Appointment> findByBookingCode(String bookingCode);
+
     List<Appointment> findByPatientId(Long patientId);
 
     List<Appointment> findByTimeSlotId(Long timeSlotId);

@@ -12,6 +12,7 @@ public record CreateTimeSlotCommand(
         LocalDate date,
         LocalTime startHour,
         LocalTime endHour,
+        String room,
         int maxCapacity) {
 
     public CreateTimeSlotCommand {

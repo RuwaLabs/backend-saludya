@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for {@link AppointmentJpaEntity}.
@@ -16,6 +17,8 @@ import java.util.List;
 public interface SpringDataAppointmentJpaRepository extends JpaRepository<AppointmentJpaEntity, Long> {
 
     List<AppointmentJpaEntity> findByPatientId(Long patientId);
+
+    Optional<AppointmentJpaEntity> findByBookingCode(String bookingCode);
 
     List<AppointmentJpaEntity> findByTimeSlotId(Long timeSlotId);
 

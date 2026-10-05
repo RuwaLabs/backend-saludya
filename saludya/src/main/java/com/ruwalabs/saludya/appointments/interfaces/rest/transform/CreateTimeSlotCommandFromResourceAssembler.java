@@ -17,6 +17,7 @@ public final class CreateTimeSlotCommandFromResourceAssembler {
                 resource.date(),
                 resource.startHour(),
                 resource.endHour(),
+                resource.room(),
                 resource.maxCapacity());
     }
 }

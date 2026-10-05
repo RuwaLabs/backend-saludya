@@ -18,6 +18,7 @@ public final class AppointmentPersistenceMapper {
         entity.setTimeSlotId(aggregate.getTimeSlotId());
         entity.setPatientId(aggregate.getPatientId());
         entity.setBookingOrder(aggregate.getBookingOrder().value());
+        entity.setBookingCode(aggregate.getBookingCode());
         entity.setStatus(aggregate.getStatus());
         entity.setCreatedAt(aggregate.getCreatedAt());
         entity.setUpdatedAt(aggregate.getUpdatedAt());
@@ -30,6 +31,7 @@ public final class AppointmentPersistenceMapper {
                 entity.getTimeSlotId(),
                 entity.getPatientId(),
                 new BookingOrder(entity.getBookingOrder()),
+                entity.getBookingCode(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

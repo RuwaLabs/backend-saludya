@@ -53,7 +53,7 @@ public class WebSecurityConfiguration {
 
                         // Arrival & QR Check-in
                         .requestMatchers(HttpMethod.GET, "/api/v1/check-ins/appointment/*/qr-token").hasRole("PATIENT")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/qr")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/qr", "/api/v1/check-ins/code")
                                 .hasAnyRole("ADMISSION_STAFF", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/queue-entries/*/leave")
                                 .hasAnyRole("PATIENT", "ADMISSION_STAFF", "SUPER_ADMIN")

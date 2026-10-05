@@ -38,6 +38,9 @@ public class AppointmentJpaEntity {
     @Column(name = "booking_order", nullable = false)
     private int bookingOrder;
 
+    @Column(name = "booking_code", length = 16)
+    private String bookingCode;
+
     @Column(name = "status", nullable = false)
     @Convert(converter = AppointmentStatusAttributeConverter.class)
     private AppointmentStatus status;

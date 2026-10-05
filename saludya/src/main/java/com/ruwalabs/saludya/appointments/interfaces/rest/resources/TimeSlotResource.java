@@ -12,6 +12,7 @@ public record TimeSlotResource(
         LocalDate date,
         LocalTime startHour,
         LocalTime endHour,
+        String room,
         int maxCapacity,
         int currentBookings,
         String status) {

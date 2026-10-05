@@ -10,6 +10,7 @@ public record AppointmentResource(
         Long timeSlotId,
         Long patientId,
         int bookingOrder,
+        String bookingCode,
         String status,
         Instant createdAt,
         Instant updatedAt) {

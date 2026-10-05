@@ -1,6 +1,7 @@
 package com.ruwalabs.saludya.arrivalcheckin.application.internal.commandservices;
 
 import com.ruwalabs.saludya.arrivalcheckin.application.commands.DeclareAbsenceCommand;
+import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInByBookingCodeCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.commandservices.CheckInCommandService;
 import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl.AppointmentInfo;
@@ -76,8 +77,23 @@ public class CheckInCommandServiceImpl implements CheckInCommandService {
             return Result.failure(ApplicationError.validationError(
                     "qrToken", "Invalid or expired QR token"));
         }
+        return registerCheckInForAppointment(payload.get().appointmentId(), command.qrToken());
+    }
 
-        var appointmentId = payload.get().appointmentId();
+    @Override
+    @Transactional
+    public Result<CheckInResult, ApplicationError> registerCheckInByBookingCode(
+            RegisterCheckInByBookingCodeCommand command) {
+        var appointment = appointmentLookupService.findByBookingCode(command.bookingCode().trim());
+        if (appointment.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Appointment", command.bookingCode()));
+        }
+        return registerCheckInForAppointment(appointment.get().appointmentId(), null);
+    }
+
+    private Result<CheckInResult, ApplicationError> registerCheckInForAppointment(
+            Long appointmentId, String qrReference) {
         if (checkInRepository.existsByAppointmentId(appointmentId)) {
             return Result.failure(ApplicationError.conflict(
                     "CheckIn", "Appointment has already checked in"));
@@ -98,7 +114,7 @@ public class CheckInCommandServiceImpl implements CheckInCommandService {
         }
 
         var checkIn = checkInRepository.save(
-                CheckInFactory.createCheckIn(appointmentId, command.qrToken()));
+                CheckInFactory.createCheckIn(appointmentId, qrReference));
 
         var today = LocalDate.now();
         var queue = attendanceQueueRepository.findByTimeSlotAndDate(info.timeSlotId(), today)

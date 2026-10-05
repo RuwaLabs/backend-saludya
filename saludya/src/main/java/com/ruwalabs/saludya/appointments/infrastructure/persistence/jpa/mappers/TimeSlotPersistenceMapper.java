@@ -18,6 +18,7 @@ public final class TimeSlotPersistenceMapper {
         entity.setDate(aggregate.getDate());
         entity.setStartHour(aggregate.getStartHour());
         entity.setEndHour(aggregate.getEndHour());
+        entity.setRoom(aggregate.getRoom());
         entity.setMaxCapacity(aggregate.getMaxCapacity());
         entity.setCurrentBookings(aggregate.getCurrentBookings());
         entity.setStatus(aggregate.getStatus());
@@ -31,6 +32,7 @@ public final class TimeSlotPersistenceMapper {
                 entity.getDate(),
                 entity.getStartHour(),
                 entity.getEndHour(),
+                entity.getRoom(),
                 entity.getMaxCapacity(),
                 entity.getCurrentBookings(),
                 entity.getStatus()

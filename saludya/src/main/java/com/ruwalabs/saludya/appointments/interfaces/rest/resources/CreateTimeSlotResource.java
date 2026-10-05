@@ -23,6 +23,8 @@ public record CreateTimeSlotResource(
         @NotNull(message = "endHour must not be null")
         LocalTime endHour,
 
+        String room,
+
         @Positive(message = "maxCapacity must be positive")
         int maxCapacity) {
 }

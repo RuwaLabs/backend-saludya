@@ -1,7 +1,9 @@
 package com.ruwalabs.saludya.arrivalcheckin.interfaces.rest;
 
+import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInByBookingCodeCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.commands.RegisterCheckInCommand;
 import com.ruwalabs.saludya.arrivalcheckin.application.commandservices.CheckInCommandService;
+import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl.AppointmentInfo;
 import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl.AppointmentLookupService;
 import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl.PatientAccessService;
 import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl.QrTokenService;
@@ -9,6 +11,8 @@ import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetCheckInByAppoi
 import com.ruwalabs.saludya.arrivalcheckin.application.queries.GetCheckInByIdQuery;
 import com.ruwalabs.saludya.arrivalcheckin.application.queryservices.CheckInQueryService;
 import com.ruwalabs.saludya.arrivalcheckin.application.queryservices.QueueQueryService;
+import com.ruwalabs.saludya.arrivalcheckin.domain.model.valueobjects.QueuePosition;
+import com.ruwalabs.saludya.arrivalcheckin.interfaces.rest.resources.CheckInByCodeResource;
 import com.ruwalabs.saludya.arrivalcheckin.interfaces.rest.resources.CheckInQrResource;
 import com.ruwalabs.saludya.arrivalcheckin.interfaces.rest.resources.CheckInResource;
 import com.ruwalabs.saludya.arrivalcheckin.interfaces.rest.resources.QrTokenResource;
@@ -71,8 +75,18 @@ public class CheckInsController {
                 HttpStatus.CREATED);
     }
 
+    @PostMapping("/code")
+    @Operation(summary = "Register a check-in from the reservation code (manual fallback)")
+    public ResponseEntity<?> registerCheckInByCode(@Valid @RequestBody CheckInByCodeResource resource) {
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                checkInCommandService.registerCheckInByBookingCode(
+                        new RegisterCheckInByBookingCodeCommand(resource.bookingCode())),
+                CheckInResultResourceAssembler::toResource,
+                HttpStatus.CREATED);
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get a check-in by id")
+    @Operation(summary = "Get the digital ticket of a check-in")
     public ResponseEntity<?> getById(@PathVariable Long id) {
         var checkIn = checkInQueryService.handle(new GetCheckInByIdQuery(id));
         if (checkIn.isEmpty()) {
@@ -81,11 +95,12 @@ public class CheckInsController {
         if (!canManageAppointment(checkIn.get().getIdAppointment())) {
             return forbidden("CheckIn", "You cannot view this check-in");
         }
-        return ResponseEntity.ok(CheckInResourceAssembler.toResource(checkIn.get()));
+        return ResponseEntity.ok(
+                CheckInResourceAssembler.toResource(checkIn.get(), lookupAppointment(checkIn.get().getIdAppointment()), lookupPosition(checkIn.get().getIdAppointment())));
     }
 
     @GetMapping("/appointment/{appointmentId}")
-    @Operation(summary = "Get the check-in of an appointment")
+    @Operation(summary = "Get the digital ticket of an appointment")
     public ResponseEntity<?> getByAppointment(@PathVariable Long appointmentId) {
         var checkIn = checkInQueryService.handle(new GetCheckInByAppointmentQuery(appointmentId));
         if (checkIn.isEmpty()) {
@@ -94,7 +109,16 @@ public class CheckInsController {
         if (!canManageAppointment(appointmentId)) {
             return forbidden("CheckIn", "You cannot view this check-in");
         }
-        return ResponseEntity.ok(CheckInResourceAssembler.toResource(checkIn.get()));
+        return ResponseEntity.ok(
+                CheckInResourceAssembler.toResource(checkIn.get(), lookupAppointment(appointmentId), lookupPosition(appointmentId)));
+    }
+
+    private AppointmentInfo lookupAppointment(Long appointmentId) {
+        return appointmentLookupService.findAppointment(appointmentId).orElse(null);
+    }
+
+    private QueuePosition lookupPosition(Long appointmentId) {
+        return queueQueryService.getPositionByAppointment(appointmentId).orElse(null);
     }
 
     @GetMapping("/appointment/{appointmentId}/qr-token")

@@ -17,6 +17,7 @@ public final class AppointmentResourceFromEntityAssembler {
                 entity.getTimeSlotId(),
                 entity.getPatientId(),
                 entity.getBookingOrder().value(),
+                entity.getBookingCode(),
                 entity.getStatus().name(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());

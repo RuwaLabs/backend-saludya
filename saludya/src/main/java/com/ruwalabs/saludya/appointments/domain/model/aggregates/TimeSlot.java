@@ -17,10 +17,11 @@ import java.util.Objects;
 public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
 
     private Long id;
-    private final Long doctorId;
+    private Long doctorId;
     private final LocalDate date;
-    private final LocalTime startHour;
-    private final LocalTime endHour;
+    private LocalTime startHour;
+    private LocalTime endHour;
+    private String room;
     private int maxCapacity;
     private int currentBookings;
     private TimeSlotStatus status;
@@ -31,6 +32,7 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
             LocalDate date,
             LocalTime startHour,
             LocalTime endHour,
+            String room,
             int maxCapacity,
             int currentBookings,
             TimeSlotStatus status
@@ -40,6 +42,7 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
         this.date = date;
         this.startHour = startHour;
         this.endHour = endHour;
+        this.room = room;
         this.maxCapacity = maxCapacity;
         this.currentBookings = currentBookings;
         this.status = status;
@@ -53,6 +56,7 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
             LocalDate date,
             LocalTime startHour,
             LocalTime endHour,
+            String room,
             int maxCapacity
     ) {
         Objects.requireNonNull(doctorId, "doctorId cannot be null");
@@ -65,7 +69,7 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
         if (!endHour.isAfter(startHour)) {
             throw new IllegalArgumentException("endHour must be after startHour");
         }
-        return new TimeSlot(null, doctorId, date, startHour, endHour, maxCapacity,
+        return new TimeSlot(null, doctorId, date, startHour, endHour, room, maxCapacity,
                 0, TimeSlotStatus.AVAILABLE);
     }
 
@@ -78,12 +82,55 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
             LocalDate date,
             LocalTime startHour,
             LocalTime endHour,
+            String room,
             int maxCapacity,
             int currentBookings,
             TimeSlotStatus status
     ) {
-        return new TimeSlot(id, doctorId, date, startHour, endHour, maxCapacity,
+        return new TimeSlot(id, doctorId, date, startHour, endHour, room, maxCapacity,
                 currentBookings, status);
+    }
+
+    /**
+     * Updates the editable attributes of the time slot: the assigned
+     * professional, the schedule and the status.
+     *
+     * @param doctorId  the new doctor identifier
+     * @param startHour the new start hour
+     * @param endHour   the new end hour
+     * @param status    the new status
+     */
+    public void updateDetails(
+            Long doctorId,
+            LocalTime startHour,
+            LocalTime endHour,
+            TimeSlotStatus status
+    ) {
+        Objects.requireNonNull(doctorId, "doctorId cannot be null");
+        Objects.requireNonNull(startHour, "startHour cannot be null");
+        Objects.requireNonNull(endHour, "endHour cannot be null");
+        Objects.requireNonNull(status, "status cannot be null");
+        if (!endHour.isAfter(startHour)) {
+            throw new IllegalArgumentException("endHour must be after startHour");
+        }
+        if (status == TimeSlotStatus.FULL && currentBookings < maxCapacity) {
+            throw new IllegalArgumentException("status FULL requires a full slot");
+        }
+        if (status == TimeSlotStatus.AVAILABLE && currentBookings >= maxCapacity) {
+            throw new IllegalArgumentException("a full slot cannot be marked as AVAILABLE");
+        }
+        this.doctorId = doctorId;
+        this.startHour = startHour;
+        this.endHour = endHour;
+        this.status = status;
+    }
+
+    /**
+     * Indicates whether the slot has registrations that must be preserved when
+     * rescheduling (only status changes are allowed in that case).
+     */
+    public boolean hasBookings() {
+        return currentBookings > 0;
     }
 
     /**
@@ -183,6 +230,10 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
 
     public LocalTime getEndHour() {
         return endHour;
+    }
+
+    public String getRoom() {
+        return room;
     }
 
     public int getMaxCapacity() {

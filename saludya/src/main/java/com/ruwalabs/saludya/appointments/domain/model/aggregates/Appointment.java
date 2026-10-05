@@ -10,6 +10,7 @@ import com.ruwalabs.saludya.shared.domain.model.aggregates.AbstractDomainAggrega
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Aggregate root representing a booked medical appointment.
@@ -23,6 +24,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
     private Long timeSlotId;
     private final Long patientId;
     private final BookingOrder bookingOrder;
+    private final String bookingCode;
     private AppointmentStatus status;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -32,6 +34,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             Long timeSlotId,
             Long patientId,
             BookingOrder bookingOrder,
+            String bookingCode,
             AppointmentStatus status,
             Instant createdAt,
             Instant updatedAt
@@ -40,6 +43,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         this.timeSlotId = timeSlotId;
         this.patientId = patientId;
         this.bookingOrder = bookingOrder;
+        this.bookingCode = bookingCode;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -54,7 +58,7 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
         Objects.requireNonNull(bookingOrder, "bookingOrder cannot be null");
         Instant now = Instant.now();
         return new Appointment(null, timeSlotId, patientId, bookingOrder,
-                AppointmentStatus.RESERVED, now, now);
+                generateBookingCode(), AppointmentStatus.RESERVED, now, now);
     }
 
     /**
@@ -65,12 +69,24 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
             Long timeSlotId,
             Long patientId,
             BookingOrder bookingOrder,
+            String bookingCode,
             AppointmentStatus status,
             Instant createdAt,
             Instant updatedAt
     ) {
-        return new Appointment(id, timeSlotId, patientId, bookingOrder, status,
+        return new Appointment(id, timeSlotId, patientId, bookingOrder, bookingCode, status,
                 createdAt, updatedAt);
+    }
+
+    /**
+     * Generates the unique reservation code shown to the patient and used for
+     * manual check-in.
+     *
+     * @return a new {@code SAL-XXXXXXXXXX} code
+     */
+    private static String generateBookingCode() {
+        return "SAL-" + UUID.randomUUID().toString().replace("-", "")
+                .substring(0, 10).toUpperCase();
     }
 
     /**
@@ -177,6 +193,10 @@ public class Appointment extends AbstractDomainAggregateRoot<Appointment> {
 
     public BookingOrder getBookingOrder() {
         return bookingOrder;
+    }
+
+    public String getBookingCode() {
+        return bookingCode;
     }
 
     public AppointmentStatus getStatus() {

@@ -17,6 +17,14 @@ public interface AppointmentLookupService {
     Optional<AppointmentInfo> findAppointment(Long appointmentId);
 
     /**
+     * Finds the appointment information for a given reservation code.
+     *
+     * @param bookingCode the reservation code
+     * @return the appointment info, if present
+     */
+    Optional<AppointmentInfo> findByBookingCode(String bookingCode);
+
+    /**
      * Marks the appointment as present (confirmed) after a successful check-in.
      *
      * @param appointmentId the appointment identifier

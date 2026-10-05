@@ -23,8 +23,26 @@ public class BookingAppointmentLookupService implements AppointmentLookupService
     @Override
     public Optional<AppointmentInfo> findAppointment(Long appointmentId) {
         return bookingContextFacade.findAppointmentInfo(appointmentId)
-                .map(info -> new AppointmentInfo(
-                        info.id(), info.timeSlotId(), info.patientId(), info.status(), info.slotStart()));
+                .map(this::toArrivalInfo);
+    }
+
+    @Override
+    public Optional<AppointmentInfo> findByBookingCode(String bookingCode) {
+        return bookingContextFacade.findAppointmentInfoByBookingCode(bookingCode)
+                .map(this::toArrivalInfo);
+    }
+
+    private AppointmentInfo toArrivalInfo(BookingContextFacade.AppointmentInfo info) {
+        return new AppointmentInfo(
+                info.id(),
+                info.timeSlotId(),
+                info.patientId(),
+                info.status(),
+                info.slotStart(),
+                info.bookingCode(),
+                info.specialtyName(),
+                info.doctorName(),
+                info.room());
     }
 
     @Override

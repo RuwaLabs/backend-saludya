@@ -42,6 +42,9 @@ public class TimeSlotJpaEntity {
     @Column(name = "end_hour", nullable = false)
     private LocalTime endHour;
 
+    @Column(name = "room", length = 60)
+    private String room;
+
     @Column(name = "max_capacity", nullable = false)
     private int maxCapacity;
 
