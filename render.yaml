@@ -1,0 +1,89 @@
+databases:
+  - name: saludya-db
+    databaseName: saludyadb
+    user: saludya
+    plan: free
+    region: ohio
+
+services:
+  - type: web
+    name: saludya-backend
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: develop
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /v3/api-docs
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+      # --- Database (mapped from the Render PostgreSQL instance) ---
+      - key: DB_HOST
+        fromDatabase:
+          name: saludya-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: saludya-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: saludya-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: saludya-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: saludya-db
+          property: password
+
+      # --- Identity provider (ApiPeru) ---
+      - key: IAM_IDENTITY_MODE
+        value: apiperu
+      - key: IAM_IDENTITY_URL
+        value: https://api.apiperu.dev/dni
+
+      # --- Email (Gmail SMTP) ---
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: MAIL_USERNAME
+        value: soporte.saludya.pe@gmail.com
+      - key: MAIL_FROM
+        value: soporte.saludya.pe@gmail.com
+      # Shows verification/login codes in the Render logs (useful for demo; disable in real prod).
+      - key: IAM_NOTIFICATIONS_LOG_CODES
+        value: "true"
+
+      # --- Super admin bootstrap ---
+      - key: IAM_BOOTSTRAP_ENABLED
+        value: "true"
+      - key: IAM_BOOTSTRAP_EMAIL
+        value: admin@saludya.local
+      - key: IAM_BOOTSTRAP_DNI
+        value: "70000002"
+      - key: IAM_BOOTSTRAP_NAME
+        value: María
+      - key: IAM_BOOTSTRAP_LASTNAME
+        value: Vega
+      - key: IAM_BOOTSTRAP_BIRTH_DATE
+        value: "1992-02-10"
+      - key: IAM_BOOTSTRAP_PHONE
+        value: "999888777"
+
+      # --- Secrets: set these in the Render dashboard (sync: false) ---
+      - key: APPLICATION_JWT_SECRET
+        sync: false
+      - key: APPLICATION_QR_SECRET
+        sync: false
+      - key: IAM_NOTIFICATIONS_ENCRYPTION_KEY
+        sync: false
+      - key: IAM_IDENTITY_API_KEY
+        sync: false
+      - key: MAIL_APP_PASSWORD
+        sync: false
+      - key: IAM_BOOTSTRAP_PASSWORD
+        sync: false
