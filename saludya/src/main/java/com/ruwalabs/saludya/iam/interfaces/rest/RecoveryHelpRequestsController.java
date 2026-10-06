@@ -1,6 +1,7 @@
 package com.ruwalabs.saludya.iam.interfaces.rest;
 
 import com.ruwalabs.saludya.iam.application.internal.AccountRecoveryHelpService;
+import com.ruwalabs.saludya.iam.application.results.RecoveryResolution;
 import com.ruwalabs.saludya.iam.domain.model.entities.RecoveryHelpRequest;
 import com.ruwalabs.saludya.iam.infrastructure.authorization.IamPrincipal;
 import com.ruwalabs.saludya.iam.interfaces.rest.resources.RecoveryHelpRequestResource;
@@ -31,8 +32,8 @@ public class RecoveryHelpRequestsController {
     @GetMapping @Operation(summary="List the oldest 100 open assisted recovery requests (SUPER_ADMIN)")
     public List<RecoveryHelpRequest> open(@AuthenticationPrincipal IamPrincipal p) { return service.open(p.userId()); }
     public record ResolveResource(@AssertTrue boolean identityCheckedInPerson) { }
-    @PostMapping("/{id}/resolve") @Operation(summary="Approve a recovery after checking the physical DNI; action is audited (SUPER_ADMIN)")
-    public ResponseEntity<Void> resolve(@AuthenticationPrincipal IamPrincipal p,@PathVariable UUID id,@Valid @RequestBody ResolveResource r) {
-        service.resolve(p.userId(),id,r.identityCheckedInPerson());return ResponseEntity.noContent().build();
+    @PostMapping("/{id}/resolve") @Operation(summary="Reset the account to a new random email and temporary password after checking the physical DNI; returns the new credentials (SUPER_ADMIN)")
+    public ResponseEntity<RecoveryResolution> resolve(@AuthenticationPrincipal IamPrincipal p,@PathVariable UUID id,@Valid @RequestBody ResolveResource r) {
+        return ResponseEntity.ok(service.resolve(p.userId(),id,r.identityCheckedInPerson()));
     }
 }

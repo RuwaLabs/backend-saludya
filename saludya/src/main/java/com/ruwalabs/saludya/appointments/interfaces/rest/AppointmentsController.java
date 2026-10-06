@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -73,6 +74,10 @@ public class AppointmentsController {
             @RequestParam(required = false) Long specialtyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String status) {
+        if (isPatient() && patientId == null) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.validationError("patientId", "patientId is required to list appointments"));
+        }
         if (patientId != null && !patientAccessService.canManagePatient(patientId)) {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     ApplicationError.forbidden("Patient", "You cannot view appointments for this patient"));
@@ -83,6 +88,12 @@ public class AppointmentsController {
                 .map(AppointmentResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    private boolean isPatient() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_PATIENT".equals(authority.getAuthority()));
     }
 
     @GetMapping("/{id}")

@@ -150,7 +150,7 @@ public class CheckInsController {
         var patientId = appointmentLookupService.findAppointment(appointmentId)
                 .map(info -> info.patientId())
                 .orElse(null);
-        return patientId == null || patientAccessService.canManagePatient(patientId);
+        return patientId != null && patientAccessService.canManagePatient(patientId);
     }
 
     private ResponseEntity<?> forbidden(String resource, String reason) {

@@ -6,6 +6,7 @@ import com.ruwalabs.saludya.reassignment.application.commands.SendReassignmentOf
 import com.ruwalabs.saludya.reassignment.application.commandservices.ReassignmentCommandService;
 import com.ruwalabs.saludya.reassignment.application.internal.outboundservices.acl.AppointmentLookupService;
 import com.ruwalabs.saludya.reassignment.application.internal.outboundservices.acl.HospitalConfigurationService;
+import com.ruwalabs.saludya.reassignment.application.internal.outboundservices.acl.PatientAccessService;
 import com.ruwalabs.saludya.reassignment.domain.model.aggregates.ReassignmentOffer;
 import com.ruwalabs.saludya.reassignment.domain.repositories.ReassignmentOfferRepository;
 import com.ruwalabs.saludya.shared.application.result.ApplicationError;
@@ -26,14 +27,17 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
     private final ReassignmentOfferRepository reassignmentOfferRepository;
     private final AppointmentLookupService appointmentLookupService;
     private final HospitalConfigurationService hospitalConfigurationService;
+    private final PatientAccessService patientAccessService;
 
     public ReassignmentCommandServiceImpl(
             ReassignmentOfferRepository reassignmentOfferRepository,
             AppointmentLookupService appointmentLookupService,
-            HospitalConfigurationService hospitalConfigurationService) {
+            HospitalConfigurationService hospitalConfigurationService,
+            PatientAccessService patientAccessService) {
         this.reassignmentOfferRepository = reassignmentOfferRepository;
         this.appointmentLookupService = appointmentLookupService;
         this.hospitalConfigurationService = hospitalConfigurationService;
+        this.patientAccessService = patientAccessService;
     }
 
     @Override
@@ -66,6 +70,10 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
     public Result<ReassignmentOffer, ApplicationError> acceptReassignment(AcceptReassignmentCommand command) {
         return reassignmentOfferRepository.findById(command.offerId())
                 .map(offer -> {
+                    if (!canRespond(offer)) {
+                        return Result.<ReassignmentOffer, ApplicationError>failure(
+                                ApplicationError.forbidden("ReassignmentOffer", "You cannot respond to this offer"));
+                    }
                     if (!offer.isPending()) {
                         return Result.<ReassignmentOffer, ApplicationError>failure(
                                 ApplicationError.conflict("ReassignmentOffer", "Offer is not pending"));
@@ -87,6 +95,10 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
     public Result<ReassignmentOffer, ApplicationError> rejectReassignment(RejectReassignmentCommand command) {
         return reassignmentOfferRepository.findById(command.offerId())
                 .map(offer -> {
+                    if (!canRespond(offer)) {
+                        return Result.<ReassignmentOffer, ApplicationError>failure(
+                                ApplicationError.forbidden("ReassignmentOffer", "You cannot respond to this offer"));
+                    }
                     if (!offer.isPending()) {
                         return Result.<ReassignmentOffer, ApplicationError>failure(
                                 ApplicationError.conflict("ReassignmentOffer", "Offer is not pending"));
@@ -97,6 +109,17 @@ public class ReassignmentCommandServiceImpl implements ReassignmentCommandServic
                 })
                 .orElseGet(() -> Result.failure(
                         ApplicationError.notFound("ReassignmentOffer", command.offerId().toString())));
+    }
+
+    /**
+     * The current caller may respond to an offer only if they manage the candidate's
+     * appointment patient (their own appointment or a minor they tutor). Staff and
+     * administrators bypass ownership; public registration is not involved here.
+     */
+    private boolean canRespond(ReassignmentOffer offer) {
+        return appointmentLookupService.patientOfAppointment(offer.getAppointmentId())
+                .map(patientAccessService::canManagePatient)
+                .orElse(false);
     }
 
     @Override

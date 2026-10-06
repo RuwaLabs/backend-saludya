@@ -150,14 +150,13 @@ public class CheckInCommandServiceImpl implements CheckInCommandService {
                         .map(CheckIn::getIdAppointment)
                         .orElse(null);
 
-        if (appointmentId != null) {
-            var patientId = appointmentLookupService.findAppointment(appointmentId)
-                    .map(AppointmentInfo::patientId)
-                    .orElse(null);
-            if (patientId != null && !patientAccessService.canManagePatient(patientId)) {
-                return Result.failure(ApplicationError.forbidden(
-                        "QueueEntry", "You cannot leave this queue entry"));
-            }
+        var patientId = appointmentId == null ? null
+                : appointmentLookupService.findAppointment(appointmentId)
+                        .map(AppointmentInfo::patientId)
+                        .orElse(null);
+        if (patientId == null || !patientAccessService.canManagePatient(patientId)) {
+            return Result.failure(ApplicationError.forbidden(
+                    "QueueEntry", "You cannot leave this queue entry"));
         }
 
         queueEntry.markAsAbsent();

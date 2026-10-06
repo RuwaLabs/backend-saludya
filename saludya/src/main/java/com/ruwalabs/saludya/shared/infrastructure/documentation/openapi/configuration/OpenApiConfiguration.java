@@ -20,7 +20,7 @@ import java.util.List;
 public class OpenApiConfiguration {
 
     private static final String API_TITLE = "SaludYa API";
-    private static final String API_DESCRIPTION = "Backend API de SaludYa — plataforma de gestión de citas médicas y "
+    private static final String API_DESCRIPTION = "Backend API de SaludYa - plataforma de gestión de citas médicas y "
             + "control de sala de espera para establecimientos públicos de salud. Expone los bounded contexts "
             + "Identity & Access Management, Appointments & Booking, Reassignment, Arrival & QR Check-in y "
             + "Hospital Operations & Configuration.";

@@ -63,7 +63,7 @@ public class QueueEntriesController {
                 .flatMap(checkIn -> appointmentLookupService.findAppointment(checkIn.getIdAppointment()))
                 .map(AppointmentInfo::patientId)
                 .orElse(null);
-        if (patientId != null && !patientAccessService.canManagePatient(patientId)) {
+        if (patientId == null || !patientAccessService.canManagePatient(patientId)) {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     ApplicationError.forbidden("QueueEntry", "You cannot view this queue entry"));
         }

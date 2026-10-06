@@ -395,13 +395,16 @@ class IamIntegrationTests {
         var list=body(mvc.perform(get("/api/v1/account-recovery-requests").header("Authorization","Bearer "+administrator)).andExpect(status().isOk()));
         var id=text(list,"$[0].id");
         postJson("/api/v1/account-recovery-requests/"+id+"/resolve",Map.of("identityCheckedInPerson",false),administrator).andExpect(status().isBadRequest());
-        postJson("/api/v1/account-recovery-requests/"+id+"/resolve",Map.of("identityCheckedInPerson",true),administrator).andExpect(status().isNoContent());
-        assertThat(users.findByEmail("help@example.test")).isPresent();
+        var resolved=body(postJson("/api/v1/account-recovery-requests/"+id+"/resolve",Map.of("identityCheckedInPerson",true),administrator).andExpect(status().isOk()));
+        var newEmail=text(resolved,"$.email");
+        var newPassword=text(resolved,"$.password");
+        assertThat(newEmail).isNotEqualTo("help@example.test");
+        assertThat(users.findByEmail(newEmail)).isPresent();
+        assertThat(hashing.matches(newPassword,users.findByEmail(newEmail).orElseThrow().getPassword())).isTrue();
         assertThat(jdbc.queryForObject("SELECT status FROM account_recovery_requests WHERE id=?",String.class,id)).isEqualTo("RESOLVED");
         assertThat(jdbc.queryForObject("SELECT resolved_by FROM account_recovery_requests WHERE id=?",Long.class,id)).isNotNull();
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
-        postJson(ACCOUNTS+"/reset-password",resetBody(rawToken("help@example.test")),null).andExpect(status().isNoContent());
-        login("help@example.test","Updated1!Password");
+        login(newEmail,newPassword);
     }
     @Test void failedMailDeliveryKeepsTheNotificationForRetryAndSuccessRedactsTheLink() throws Exception {
         patient();recoveryToken("lucia@example.test");
