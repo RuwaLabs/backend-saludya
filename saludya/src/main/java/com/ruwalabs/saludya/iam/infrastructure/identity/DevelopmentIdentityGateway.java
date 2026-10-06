@@ -24,7 +24,7 @@ public class DevelopmentIdentityGateway implements IdentityGateway {
     }
     public OfficialIdentity lookup(Dni dni) {
         var identity=IDENTITIES.get(dni.value());
-        if(identity==null) throw new IamException(422,"IAM_IDENTITY_MISMATCH","The identity information does not match the DNI");
+        if(identity==null) throw new IamException(404,"IAM_DNI_NOT_FOUND","El DNI no existe");
         return identity;
     }
 }

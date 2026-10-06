@@ -1,7 +1,7 @@
 package com.ruwalabs.saludya.iam;
 
 import com.ruwalabs.saludya.iam.infrastructure.authorization.AuthRateLimitFilter;
-import com.ruwalabs.saludya.iam.infrastructure.identity.ReniecService;
+import com.ruwalabs.saludya.iam.infrastructure.identity.ApiPeruIdentityGateway;
 import com.ruwalabs.saludya.iam.infrastructure.identity.UnavailableIdentityGateway;
 import com.ruwalabs.saludya.iam.infrastructure.notifications.NotificationCipher;
 import com.ruwalabs.saludya.iam.infrastructure.hashing.BCryptHashingService;
@@ -46,58 +46,77 @@ class IamSecurityTests {
         filter.doFilter(new MockHttpServletRequest("POST","/api/v1/user-accounts/login"),response,(req,res)->((jakarta.servlet.http.HttpServletResponse)res).setStatus(204));
         assertThat(response.getStatus()).isEqualTo(204);
     }
-    @Test void adulthoodUsesVerifiedBirthDateAndTheLimaCalendarBoundary() {
+    @Test void adulthoodUsesTheDeclaredBirthDateAndTheLimaCalendarBoundary() {
         var clock=Clock.fixed(Instant.parse("2026-10-03T03:00:00Z"),ZoneOffset.UTC);
-        var identity=new IdentityGateway.OfficialIdentity(new Dni("71234821"),"Lucía","Torres",LocalDate.parse("2008-10-03"),Set.of());
-        var service=new IdentityVerificationService(dni->identity,clock);
+        var service=new IdentityVerificationService(dni->null,clock);
         assertThat(service.today()).isEqualTo(LocalDate.parse("2026-10-02"));
-        assertThatThrownBy(()->service.requireAdult(identity)).isInstanceOf(IamException.class);
-        var nextDay=new IdentityVerificationService(dni->identity,Clock.fixed(Instant.parse("2026-10-03T05:00:00Z"),ZoneOffset.UTC));
-        assertThatCode(()->nextDay.requireAdult(identity)).doesNotThrowAnyException();
+        assertThatThrownBy(()->service.requireAdult(LocalDate.parse("2008-10-03"))).isInstanceOf(IamException.class);
+        var nextDay=new IdentityVerificationService(dni->null,Clock.fixed(Instant.parse("2026-10-03T05:00:00Z"),ZoneOffset.UTC));
+        assertThatCode(()->nextDay.requireAdult(LocalDate.parse("2008-10-03"))).doesNotThrowAnyException();
     }
-    @Test void trustedNamesCanBeAccentNormalizedButBirthDateCannotBeAltered() {
-        var identity=new IdentityGateway.OfficialIdentity(new Dni("71234821"),"Lucía","Torres",LocalDate.parse("1995-04-15"),Set.of());
+    @Test void trustedNamesCanBeAccentAndOrderNormalizedButADifferentNameIsRejected() {
+        var identity=new IdentityGateway.OfficialIdentity(new Dni("71234821"),"Lucía","Torres",null,Set.of());
         var service=new IdentityVerificationService(dni->identity,Clock.systemUTC());
-        assertThatCode(()->service.verify("71234821","  LUCIA  ","torres",identity.birthDate())).doesNotThrowAnyException();
-        assertThatThrownBy(()->service.verify("71234821","Lucía","Torres",LocalDate.parse("1990-01-01"))).isInstanceOf(IamException.class);
+        assertThatCode(()->service.verify("71234821","  LUCIA  ","torres")).doesNotThrowAnyException();
+        assertThatCode(()->service.verify("71234821","Torres","Lucía")).doesNotThrowAnyException();
+        assertThatThrownBy(()->service.verify("71234821","Lucía","Ramírez")).isInstanceOf(IamException.class);
+    }
+    @Test void existenceCheckDistinguishesAMissingDniFromAProviderOutage() {
+        var service=new IdentityVerificationService(dni -> {
+            if(dni.value().equals("71234821")) return new IdentityGateway.OfficialIdentity(new Dni("71234821"),"Lucía","Torres",null,Set.of());
+            throw new IamException(404,"IAM_DNI_NOT_FOUND","El DNI no existe");
+        },Clock.systemUTC());
+        assertThat(service.exists("71234821")).isTrue();
+        assertThat(service.exists("00000000")).isFalse();
+        var unavailable=new IdentityVerificationService(dni->{ throw new IamException(503,"IAM_IDENTITY_UNAVAILABLE","down"); },Clock.systemUTC());
+        assertThatThrownBy(()->unavailable.exists("71234821")).isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
     }
     @Test void anUnconfiguredIdentityGatewayFailsClosed() {
         assertThatThrownBy(()->new UnavailableIdentityGateway().lookup(new Dni("71234821")))
                 .isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
     }
-    @Test void identityProviderConfigurationRejectsInsecureRemoteUrlsAndFakeLocalhostHosts() {
-        assertThatThrownBy(()->new ReniecService("http://identity.example.test/{dni}","")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(()->new ReniecService("http://localhost.attacker.test/{dni}","")).isInstanceOf(IllegalArgumentException.class);
+    @Test void apiPeruConfigurationRejectsInsecureRemoteUrlsAndFakeLocalhostHosts() {
+        assertThatThrownBy(()->new ApiPeruIdentityGateway("http://identity.example.test/dni","")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->new ApiPeruIdentityGateway("http://localhost.attacker.test/dni","")).isInstanceOf(IllegalArgumentException.class);
     }
-    @Test void trustedIdentityGatewayHandlesValidMissingAndUnavailableResponses() throws Exception {
+    @Test void apiPeruGatewayHandlesFoundMissingAndUnavailableResponses() throws Exception {
         var server=HttpServer.create(new InetSocketAddress("localhost",0),0);
-        server.createContext("/identity",exchange->{
-            String dni=exchange.getRequestURI().getPath().substring("/identity/".length());
-            int status=dni.equals("71234821")?200:dni.equals("00000000")?404:500;
-            String response=status==200?"{\"dni\":\"71234821\",\"name\":\"Lucía\",\"lastname\":\"Torres\",\"birthDate\":\"1995-04-15\",\"guardianDnis\":[]}":"{}";
+        server.createContext("/dni",exchange->{
+            String body=new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8);
+            int status=body.contains("44556677")?200:body.contains("00000000")?404:503;
+            String response=switch(status) {
+                case 200 -> "{\"success\":true,\"code\":\"found\",\"data\":{\"numero\":\"44556677\",\"nombre_completo\":\"PEREZ GARCIA JUAN CARLOS\",\"nombres\":\"JUAN CARLOS\",\"apellido_paterno\":\"PEREZ\",\"apellido_materno\":\"GARCIA\",\"codigo_verificacion\":3}}";
+                case 404 -> "{\"success\":false,\"code\":\"document_not_found\",\"message\":\"El DNI no existe\"}";
+                default -> "{\"success\":false,\"code\":\"upstream_unavailable\",\"message\":\"Unavailable\"}";
+            };
             byte[] bytes=response.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type","application/json");
             exchange.sendResponseHeaders(status,bytes.length);exchange.getResponseBody().write(bytes);exchange.close();
         });
         server.start();
         try {
-            var service=new ReniecService("http://localhost:"+server.getAddress().getPort()+"/identity/{dni}","test-provider-key");
-            assertThat(service.lookup(new Dni("71234821")).birthDate()).isEqualTo(LocalDate.parse("1995-04-15"));
-            assertThatThrownBy(()->service.lookup(new Dni("00000000"))).isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(422));
-            assertThatThrownBy(()->service.lookup(new Dni("99999999"))).isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
+            var gateway=new ApiPeruIdentityGateway("http://localhost:"+server.getAddress().getPort()+"/dni","test-provider-key");
+            var identity=gateway.lookup(new Dni("44556677"));
+            assertThat(identity.name()).isEqualTo("Juan Carlos");
+            assertThat(identity.lastname()).isEqualTo("Perez Garcia");
+            assertThat(identity.birthDate()).isNull();
+            assertThatThrownBy(()->gateway.lookup(new Dni("00000000")))
+                    .isInstanceOfSatisfying(IamException.class,e->{assertThat(e.getStatus()).isEqualTo(404);assertThat(e.getCode()).isEqualTo("IAM_DNI_NOT_FOUND");});
+            assertThatThrownBy(()->gateway.lookup(new Dni("99999999")))
+                    .isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
         } finally { server.stop(0); }
     }
-    @Test void incompleteIdentityProviderResponsesCannotApproveRegistration() throws Exception {
+    @Test void incompleteApiPeruResponsesCannotApproveRegistration() throws Exception {
         var server=HttpServer.create(new InetSocketAddress("localhost",0),0);
         server.createContext("/",exchange->{
-            byte[] bytes="{\"dni\":\"71234821\",\"name\":\"Lucía\",\"lastname\":\"Torres\"}".getBytes(StandardCharsets.UTF_8);
+            byte[] bytes="{\"success\":true,\"data\":null}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type","application/json");exchange.sendResponseHeaders(200,bytes.length);
             exchange.getResponseBody().write(bytes);exchange.close();
         });
         server.start();
         try {
-            var service=new ReniecService("http://localhost:"+server.getAddress().getPort()+"/{dni}","");
-            assertThatThrownBy(()->service.lookup(new Dni("71234821"))).isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
+            var gateway=new ApiPeruIdentityGateway("http://localhost:"+server.getAddress().getPort()+"/dni","");
+            assertThatThrownBy(()->gateway.lookup(new Dni("71234821"))).isInstanceOfSatisfying(IamException.class,e->assertThat(e.getStatus()).isEqualTo(503));
         } finally { server.stop(0); }
     }
 }

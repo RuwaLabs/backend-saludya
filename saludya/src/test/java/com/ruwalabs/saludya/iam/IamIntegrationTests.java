@@ -90,14 +90,36 @@ class IamIntegrationTests {
     private String body(ResultActions result) throws Exception { return result.andReturn().getResponse().getContentAsString(); }
     private Long id(String response,String path) { return ((Number)JsonPath.read(response,path)).longValue(); }
     private String text(String response,String path) { return JsonPath.read(response,path); }
-    private Long register(Map<String,Object> r) throws Exception {
-        return id(body(postJson(ACCOUNTS,r,null).andExpect(status().isCreated())),"$.userId");
+    private String sendVerificationCode(String email) throws Exception {
+        postJson(ACCOUNTS+"/send-verification-code",Map.of("email",email),null).andExpect(status().isAccepted());
+        return emailCode(email.toLowerCase(java.util.Locale.ROOT),"Verifica tu correo");
     }
-    private String login(String email,Role role,String password) throws Exception {
-        return text(body(postJson(ACCOUNTS+"/login",Map.of("email",email,"password",password,"role",role.name()),null)
+    private Map<String,Object> withCode(Map<String,Object> r,String email) throws Exception {
+        var body=new HashMap<>(r);body.put("code",sendVerificationCode(email));return body;
+    }
+    private Map<String,Object> withCodeValue(Map<String,Object> r,String value) {
+        var body=new HashMap<>(r);body.put("code",value);return body;
+    }
+    private Long register(Map<String,Object> r) throws Exception {
+        var body=withCode(r,(String)r.get("email"));
+        return id(body(postJson(ACCOUNTS,body,null).andExpect(status().isCreated())),"$.userId");
+    }
+    private String emailCode(String email,String subjectFragment) {
+        return outbox.findAll().stream().filter(n->n.getRecipient().equals(email))
+                .filter(n->n.getSubject().contains(subjectFragment))
+                .sorted(Comparator.comparing(n->n.getCreatedAt()))
+                .map(n->cipher.decrypt(n.getEncryptedBody()))
+                .map(s->Pattern.compile("\\b(\\d{6})\\b").matcher(s))
+                .filter(java.util.regex.Matcher::find).map(m->m.group(1))
+                .reduce((a,b)->b).orElseThrow(()->new IllegalStateException("No email code for "+email+" ("+subjectFragment+")"));
+    }
+    private String login(String email,String password) throws Exception {
+        var start=body(postJson(ACCOUNTS+"/login",Map.of("email",email,"password",password),null).andExpect(status().isOk()));
+        var challengeId=text(start,"$.challengeId");var code=emailCode(email,"inicio de sesión");
+        return text(body(postJson(ACCOUNTS+"/login/verify",Map.of("challengeId",challengeId,"code",code),null)
                 .andExpect(status().isOk())),"$.accessToken");
     }
-    private String patient() throws Exception { register(lucia("lucia@example.test"));return login("lucia@example.test",Role.PATIENT,PASSWORD); }
+    private String patient() throws Exception { register(lucia("lucia@example.test"));return login("lucia@example.test",PASSWORD); }
     private String admin() throws Exception {
         tx.executeWithoutResult(s->{
             var a=users.save(new UserAccount(null,new Email("admin@example.test"),hashing.hash(PASSWORD),Role.SUPER_ADMIN,true,clock.instant()));
@@ -105,7 +127,7 @@ class IamIntegrationTests {
             staff.save(new StaffProfile(null,a.getId(),new com.ruwalabs.saludya.iam.domain.model.valueobjects.Dni("30000001"),
                     "Carlos","Vega",LocalDate.parse("1980-01-12"),"987654321"));
         });
-        return login("admin@example.test",Role.SUPER_ADMIN,PASSWORD);
+        return login("admin@example.test",PASSWORD);
     }
     private String recoveryToken(String email) throws Exception {
         postJson(ACCOUNTS+"/recover-password",Map.of("email",email),null).andExpect(status().isAccepted());
@@ -118,84 +140,106 @@ class IamIntegrationTests {
     }
     private Map<String,String> resetBody(String token) { return Map.of("token",token,"password","Updated1!Password","confirmPassword","Updated1!Password"); }
 
-    @Test void verifiedRegistrationHashesPasswordAndQueuesWelcomeWithoutLeakingCredentials() throws Exception {
-        var result=postJson(ACCOUNTS,lucia("LUCIA@example.test"),null).andExpect(status().isCreated())
+    @Test void sendingTheCodeQueuesTheVerificationEmail() throws Exception {
+        postJson(ACCOUNTS+"/send-verification-code",Map.of("email","LUCIA@example.test"),null).andExpect(status().isAccepted());
+        assertThat(outbox.findAll()).hasSize(1);
+        assertThat(outbox.findAll().getFirst().getSubject()).contains("Verifica tu correo");
+        assertThat(cipher.decrypt(outbox.findAll().getFirst().getEncryptedBody())).contains("código");
+    }
+    @Test void registrationHashesPasswordAndQueuesWelcomeWithoutLeakingCredentials() throws Exception {
+        var result=postJson(ACCOUNTS,withCode(lucia("LUCIA@example.test"),"LUCIA@example.test"),null).andExpect(status().isCreated())
                 .andExpect(jsonPath("$.dni").value("71234821")).andExpect(jsonPath("$.password").doesNotExist());
         var user=users.findById(id(body(result),"$.userId")).orElseThrow();
         assertThat(user.getEmail().value()).isEqualTo("lucia@example.test");
         assertThat(user.getRole()).isEqualTo(Role.PATIENT);
         assertThat(user.getPassword().value()).startsWith("$2").isNotEqualTo(PASSWORD);
         assertThat(hashing.matches(PASSWORD,user.getPassword())).isTrue();
-        assertThat(outbox.findAll()).hasSize(1);
-        assertThat(cipher.decrypt(outbox.findAll().getFirst().getEncryptedBody())).contains("Tu identidad fue verificada");
+        assertThat(outbox.findAll()).anySatisfy(n->assertThat(cipher.decrypt(n.getEncryptedBody())).contains("Tu correo fue verificado"));
+    }
+    @Test void registrationRejectsAnInvalidCodeAndCreatesNoAccount() throws Exception {
+        sendVerificationCode("lucia@example.test");
+        postJson(ACCOUNTS,withCodeValue(lucia("lucia@example.test"),"000000"),null).andExpect(status().isUnprocessableEntity());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM users",Integer.class)).isZero();
     }
     @Test void forgedRegistrationRoleCannotCreateAdministrator() throws Exception {
         var r=new HashMap<>(lucia("lucia@example.test"));r.put("role","SUPER_ADMIN");
-        postJson(ACCOUNTS,r,null).andExpect(status().isCreated());
+        postJson(ACCOUNTS,withCode(r,"lucia@example.test"),null).andExpect(status().isCreated());
         assertThat(users.findByEmail("lucia@example.test").orElseThrow().getRole()).isEqualTo(Role.PATIENT);
     }
     @Test void identityMismatchRollsBackAllAccountAndNotificationWrites() throws Exception {
-        var r=new HashMap<>(lucia("lucia@example.test"));r.put("name","Another person");
+        var r=new HashMap<>(lucia("lucia@example.test"));r.put("name","Another person");r.put("code","000000");
         postJson(ACCOUNTS,r,null).andExpect(status().isUnprocessableEntity());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM users",Integer.class)).isZero();
         assertThat(outbox.count()).isZero();
     }
     @Test void unknownDniCannotPassTheDevelopmentAllowList() throws Exception {
-        postJson(ACCOUNTS,adult("11111111","Unknown","Person","1990-01-01","unknown@example.test"),null)
-                .andExpect(status().isUnprocessableEntity());
+        postJson(ACCOUNTS,withCodeValue(adult("11111111","Unknown","Person","1990-01-01","unknown@example.test"),"000000"),null)
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("IAM_DNI_NOT_FOUND"));
     }
     @Test void minorCannotRegisterAnIndependentAccount() throws Exception {
-        postJson(ACCOUNTS,adult("87652716","Mateo","Torres","2018-04-15","minor@example.test"),null)
+        postJson(ACCOUNTS,withCodeValue(adult("87652716","Mateo","Torres","2018-04-15","minor@example.test"),"000000"),null)
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("IAM_ADULT_REQUIRED"));
     }
     @Test void duplicateEmailIsCaseInsensitive() throws Exception {
         register(lucia("lucia@example.test"));
-        postJson(ACCOUNTS,maria("LUCIA@example.test"),null).andExpect(status().isConflict());
+        postJson(ACCOUNTS,withCodeValue(maria("LUCIA@example.test"),"000000"),null).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM users",Integer.class)).isEqualTo(1);
     }
     @Test void duplicateDniCannotCreateAnotherAccount() throws Exception {
         register(lucia("lucia@example.test"));
-        postJson(ACCOUNTS,lucia("other@example.test"),null).andExpect(status().isConflict());
+        postJson(ACCOUNTS,withCodeValue(lucia("other@example.test"),"000000"),null).andExpect(status().isConflict());
     }
     @Test void concurrentRegistrationsForTheSameIdentityCreateExactlyOneAccount() throws Exception {
+        var a=withCode(lucia("a@example.test"),"a@example.test");
+        var b=withCode(lucia("b@example.test"),"b@example.test");
         try(var pool=Executors.newFixedThreadPool(2)) {
             var start=new CountDownLatch(1);
-            var a=pool.submit(()->{ start.await();return postJson(ACCOUNTS,lucia("a@example.test"),null).andReturn().getResponse().getStatus(); });
-            var b=pool.submit(()->{ start.await();return postJson(ACCOUNTS,lucia("b@example.test"),null).andReturn().getResponse().getStatus(); });
+            var r1=pool.submit(()->{ start.await();return postJson(ACCOUNTS,a,null).andReturn().getResponse().getStatus(); });
+            var r2=pool.submit(()->{ start.await();return postJson(ACCOUNTS,b,null).andReturn().getResponse().getStatus(); });
             start.countDown();
-            assertThat(List.of(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS))).containsExactlyInAnyOrder(201,409);
+            assertThat(List.of(r1.get(15,TimeUnit.SECONDS),r2.get(15,TimeUnit.SECONDS))).containsExactlyInAnyOrder(201,409);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM users",Integer.class)).isEqualTo(1);
-            assertThat(outbox.count()).isEqualTo(1);
         }
     }
     @Test void malformedDniAndWeakPasswordAreRejected() throws Exception {
-        var invalid=new HashMap<>(lucia("lucia@example.test"));invalid.put("dni","123");
+        var invalid=withCodeValue(lucia("lucia@example.test"),"000000");invalid.put("dni","123");
         postJson(ACCOUNTS,invalid,null).andExpect(status().isBadRequest());
-        invalid=new HashMap<>(lucia("lucia@example.test"));invalid.put("password","abcdefgh");
-        postJson(ACCOUNTS,invalid,null).andExpect(status().isBadRequest());
+        var weak=withCode(lucia("lucia@example.test"),"lucia@example.test");weak.put("password","abcdefgh");
+        postJson(ACCOUNTS,weak,null).andExpect(status().isBadRequest());
     }
-    @Test void malformedJsonAndUnknownRoleAreBadRequests() throws Exception {
+    @Test void malformedJsonAndInvalidLoginPayloadAreBadRequests() throws Exception {
         mvc.perform(post(ACCOUNTS+"/login").contentType("application/json").content("{")).andExpect(status().isBadRequest());
-        postJson(ACCOUNTS+"/login",Map.of("email","x@example.test","password",PASSWORD,"role","ROOT"),null)
+        postJson(ACCOUNTS+"/login",Map.of("email","not-an-email","password",PASSWORD),null)
                 .andExpect(status().isBadRequest());
     }
-    @Test void loginWorksWithEmailAndDniAndReturnsSafeOwnProfile() throws Exception {
+    @Test void loginWorksWithEmailAndReturnsSafeOwnProfile() throws Exception {
         var token=patient();
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+token)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("lucia@example.test")).andExpect(jsonPath("$.password").doesNotExist());
-        postJson(ACCOUNTS+"/login",Map.of("dni","71234821","password",PASSWORD,"role","PATIENT"),null).andExpect(status().isOk());
     }
-    @Test void wrongPasswordUnknownUserAndWrongSelectedRoleReturnTheSameUnauthorizedError() throws Exception {
+    @Test void wrongPasswordAndUnknownUserReturnTheSameUnauthorizedError() throws Exception {
         register(lucia("lucia@example.test"));
-        var a=body(postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password","Wrong1!Password","role","PATIENT"),null).andExpect(status().isUnauthorized()));
-        var b=body(postJson(ACCOUNTS+"/login",Map.of("email","unknown@example.test","password",PASSWORD,"role","PATIENT"),null).andExpect(status().isUnauthorized()));
-        var c=body(postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password",PASSWORD,"role","SUPER_ADMIN"),null).andExpect(status().isUnauthorized()));
-        assertThat(a).isEqualTo(b).isEqualTo(c);
+        var a=body(postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password","Wrong1!Password"),null).andExpect(status().isUnauthorized()));
+        var b=body(postJson(ACCOUNTS+"/login",Map.of("email","unknown@example.test","password",PASSWORD),null).andExpect(status().isUnauthorized()));
+        assertThat(a).isEqualTo(b);
     }
-    @Test void ambiguousLoginAndMissingRoleAreRejected() throws Exception {
-        postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","dni","71234821","password",PASSWORD,"role","PATIENT"),null)
-                .andExpect(status().isBadRequest());
-        postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password",PASSWORD),null).andExpect(status().isBadRequest());
+    @Test void loginRequiresEmailAndPasswordAndDoesNotIssueATokenBeforeVerification() throws Exception {
+        register(lucia("lucia@example.test"));
+        postJson(ACCOUNTS+"/login",Map.of("password",PASSWORD),null).andExpect(status().isBadRequest());
+        postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test"),null).andExpect(status().isBadRequest());
+        var start=body(postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password",PASSWORD),null).andExpect(status().isOk()));
+        assertThat(start).doesNotContain("accessToken");
+        assertThat(text(start,"$.challengeId")).isNotBlank();
+        assertThat(text(start,"$.maskedEmail")).endsWith("@example.test");
+    }
+    @Test void loginRejectsAnInvalidEmailCodeAndConsumesTheChallengeOnSuccess() throws Exception {
+        register(lucia("lucia@example.test"));
+        var start=body(postJson(ACCOUNTS+"/login",Map.of("email","lucia@example.test","password",PASSWORD),null).andExpect(status().isOk()));
+        var challengeId=text(start,"$.challengeId");
+        var code=emailCode("lucia@example.test","inicio de sesión");var wrong=code.equals("000000")?"111111":"000000";
+        postJson(ACCOUNTS+"/login/verify",Map.of("challengeId",challengeId,"code",wrong),null).andExpect(status().isUnprocessableEntity());
+        postJson(ACCOUNTS+"/login/verify",Map.of("challengeId",challengeId,"code",code),null).andExpect(status().isOk());
+        postJson(ACCOUNTS+"/login/verify",Map.of("challengeId",challengeId,"code",code),null).andExpect(status().isUnprocessableEntity());
     }
     @Test void protectedRoutesRejectMissingAndTamperedBearerTokens() throws Exception {
         mvc.perform(get(ACCOUNTS+"/me")).andExpect(status().isUnauthorized());
@@ -208,7 +252,7 @@ class IamIntegrationTests {
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
     }
     @Test void logoutRevokesOnlyTheCurrentSession() throws Exception {
-        var first=patient();var second=login("lucia@example.test",Role.PATIENT,PASSWORD);
+        var first=patient();var second=login("lucia@example.test",PASSWORD);
         postJson(ACCOUNTS+"/logout",Map.of(),first).andExpect(status().isNoContent());
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+first)).andExpect(status().isUnauthorized());
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+second)).andExpect(status().isOk());
@@ -237,7 +281,7 @@ class IamIntegrationTests {
         assertThat(outbox.findAll()).extracting(n->n.getRecipient()).contains("new@example.test","lucia@example.test");
     }
     @Test void anyPatientCanLinkAVerifiedMinor() throws Exception {
-        register(maria("maria@example.test"));var token=login("maria@example.test",Role.PATIENT,PASSWORD);
+        register(maria("maria@example.test"));var token=login("maria@example.test",PASSWORD);
         postJson("/api/v1/patient-minors",minor(),token).andExpect(status().isCreated());
     }
     @Test void linkAndUnlinkPreserveMinorIdentityWhileRemovingAccessAndContactResolution() throws Exception {
@@ -255,7 +299,7 @@ class IamIntegrationTests {
     }
     @Test void anExistingMinorLinkCannotBeTransferredOrDeletedByAnotherPatient() throws Exception {
         var token=patient();var linked=body(postJson("/api/v1/patient-minors",minor(),token).andExpect(status().isCreated()));
-        register(maria("maria@example.test"));var other=login("maria@example.test",Role.PATIENT,PASSWORD);
+        register(maria("maria@example.test"));var other=login("maria@example.test",PASSWORD);
         postJson("/api/v1/patient-minors",minor(),other).andExpect(status().isConflict());
         mvc.perform(delete("/api/v1/patient-minors/"+id(linked,"$.id")).header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/patient-minors/"+id(linked,"$.id")).header("Authorization","Bearer "+other)).andExpect(status().isForbidden());
@@ -279,12 +323,12 @@ class IamIntegrationTests {
         postJson(ACCOUNTS+"/reset-password",resetBody(raw),null).andExpect(status().isNoContent());
         postJson(ACCOUNTS+"/reset-password",resetBody(raw),null).andExpect(status().isUnprocessableEntity());
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+session)).andExpect(status().isUnauthorized());
-        login("lucia@example.test",Role.PATIENT,"Updated1!Password");
+        login("lucia@example.test","Updated1!Password");
     }
     @Test void recoveryLinkExpiresAfterExactlyFifteenMinutes() throws Exception {
         patient();var raw=recoveryToken("lucia@example.test");clock.advance(Duration.ofMinutes(15));
         postJson(ACCOUNTS+"/reset-password",resetBody(raw),null).andExpect(status().isUnprocessableEntity());
-        login("lucia@example.test",Role.PATIENT,PASSWORD);
+        login("lucia@example.test",PASSWORD);
     }
     @Test void aNewRecoveryRequestInvalidatesPreviousLinksAndMismatchedConfirmationCannotReset() throws Exception {
         patient();var first=recoveryToken("lucia@example.test");clock.advance(Duration.ofSeconds(1));var second=recoveryToken("lucia@example.test");
@@ -310,7 +354,7 @@ class IamIntegrationTests {
         postJson(ACCOUNTS+"/change-password",Map.of("currentPassword",PASSWORD,"password","Updated1!Password","confirmPassword","Updated1!Password"),token)
                 .andExpect(status().isNoContent());
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
-        login("lucia@example.test",Role.PATIENT,"Updated1!Password");
+        login("lucia@example.test","Updated1!Password");
         postJson(ACCOUNTS+"/reset-password",resetBody(oldLink),null).andExpect(status().isUnprocessableEntity());
     }
     @Test void staffCreationRejectsAnUnverifiedIdentityAndAnExistingPatientDni() throws Exception {
@@ -335,7 +379,7 @@ class IamIntegrationTests {
         postJson(ACCOUNTS+"/staff",r,administrator).andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("ADMISSION_STAFF"));
         String raw=rawToken("staff@example.test");
         postJson(ACCOUNTS+"/reset-password",resetBody(raw),null).andExpect(status().isNoContent());
-        var staffToken=login("staff@example.test",Role.ADMISSION_STAFF,"Updated1!Password");
+        var staffToken=login("staff@example.test","Updated1!Password");
         postJson(ACCOUNTS+"/staff",r,staffToken).andExpect(status().isForbidden());
         postJson("/api/v1/patient-minors",minor(),staffToken).andExpect(status().isForbidden());
         var user=users.findByEmail("staff@example.test").orElseThrow();
@@ -357,7 +401,7 @@ class IamIntegrationTests {
         assertThat(jdbc.queryForObject("SELECT resolved_by FROM account_recovery_requests WHERE id=?",Long.class,id)).isNotNull();
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
         postJson(ACCOUNTS+"/reset-password",resetBody(rawToken("help@example.test")),null).andExpect(status().isNoContent());
-        login("help@example.test",Role.PATIENT,"Updated1!Password");
+        login("help@example.test","Updated1!Password");
     }
     @Test void failedMailDeliveryKeepsTheNotificationForRetryAndSuccessRedactsTheLink() throws Exception {
         patient();recoveryToken("lucia@example.test");

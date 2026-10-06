@@ -14,6 +14,8 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
         var path=request.getRequestURI();
         boolean sensitive=request.getMethod().equals("POST")&&(path.equals("/api/v1/user-accounts")||path.endsWith("/login")
+                ||path.endsWith("/login/verify")||path.endsWith("/login/resend")
+                ||path.endsWith("/send-verification-code")
                 ||path.endsWith("/recover-password")||path.endsWith("/reset-password")||path.startsWith("/api/v1/identity-verifications")
                 ||path.equals("/api/v1/account-recovery-requests"));
         if(enabled&&sensitive&&!allow(request.getRemoteAddr()+":"+path)) {

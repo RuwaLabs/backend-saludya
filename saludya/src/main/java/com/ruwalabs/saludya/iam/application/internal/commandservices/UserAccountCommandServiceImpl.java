@@ -28,51 +28,61 @@ public class UserAccountCommandServiceImpl implements UserAccountCommandService 
     private final long expirationMs;private final PasswordHash dummyHash;
     private final IdentityClaimRepository identityClaims;
     private final StaffEmailPolicy staffEmailPolicy;
+    private final LoginChallengeService loginChallenges;
+    private final EmailVerificationService emailVerification;
     public UserAccountCommandServiceImpl(UserAccountRepository users,PatientRepository patients,StaffProfileRepository staff,
             SessionRepository sessions,HashingService hashing,TokenService tokens,IdentityVerificationService identities,AccessPolicy access,
             EventPublisher events,PasswordRecoveryService recovery,UserAccountQueryServiceImpl profiles,Clock clock,
-            @Value("${application.jwt.expiration-ms}") long expirationMs,IdentityClaimRepository identityClaims,StaffEmailPolicy staffEmailPolicy) {
+            @Value("${application.jwt.expiration-ms}") long expirationMs,IdentityClaimRepository identityClaims,StaffEmailPolicy staffEmailPolicy,
+            LoginChallengeService loginChallenges,EmailVerificationService emailVerification) {
         this.identityClaims=identityClaims;
         this.staffEmailPolicy=staffEmailPolicy;
+        this.loginChallenges=loginChallenges;
+        this.emailVerification=emailVerification;
         this.users=users;this.patients=patients;this.staff=staff;this.sessions=sessions;this.hashing=hashing;this.tokens=tokens;
         this.identities=identities;this.access=access;this.events=events;this.recovery=recovery;this.profiles=profiles;this.clock=clock;
         if(expirationMs<60000||expirationMs>86400000) throw new IllegalArgumentException("JWT lifetime must be between 1 minute and 24 hours");
         this.expirationMs=expirationMs;this.dummyHash=hashing.hash("Nonexistent1!Account");
     }
     public Patient registerPatient(RegisterPatientCommand c) {
-        var identity=identities.verify(c.dni(),c.name(),c.lastname(),c.birthDate());identities.requireAdult(identity);
+        var identity=identities.verify(c.dni(),c.name(),c.lastname());identities.requireAdult(c.birthDate());
         var email=new Email(c.email());ensureEmailAvailable(email,null);ensureIdentityAvailable(c.dni());
+        emailVerification.verify("registration",email.value(),c.code());
         var user=users.save(UserAccountFactory.createPatientAccount(email,hashing.hash(c.password()),clock.instant()));
         identityClaims.claim(identity.dni().value(),user.getId());
-        var patient=patients.save(new Patient(null,user.getId(),identity.dni(),identity.name(),identity.lastname(),identity.birthDate(),c.phone()));
-        events.publish(new PatientRegisteredEvent(user.getId(),patient.getId()));return patient;
+        var patient=patients.save(new Patient(null,user.getId(),identity.dni(),identity.name(),identity.lastname(),c.birthDate(),c.phone()));
+        events.publish(new PatientRegisteredEvent(user.getId(),patient.getId()));
+        return patient;
     }
     public AccountProfile createStaffAccount(CreateStaffAccountCommand c) {
-        access.requireSuperAdmin(c.actorId());var identity=identities.verify(c.dni(),c.name(),c.lastname(),c.birthDate());identities.requireAdult(identity);
+        access.requireSuperAdmin(c.actorId());var identity=identities.verify(c.dni(),c.name(),c.lastname());identities.requireAdult(c.birthDate());
         var email=new Email(c.email());staffEmailPolicy.requireCorporateEmail(email);ensureEmailAvailable(email,null);ensureIdentityAvailable(c.dni());
         var user=users.save(UserAccountFactory.createStaffAccount(email,hashing.hash("Sy1!"+UUID.randomUUID()),clock.instant()));
         identityClaims.claim(identity.dni().value(),user.getId());
-        staff.save(new StaffProfile(null,user.getId(),identity.dni(),identity.name(),identity.lastname(),identity.birthDate(),c.phone()));
+        staff.save(new StaffProfile(null,user.getId(),identity.dni(),identity.name(),identity.lastname(),c.birthDate(),c.phone()));
         recovery.sendStaffInvitation(user);events.publish(new StaffAccountCreatedEvent(user.getId()));return profiles.profile(user.getId());
     }
-    public AuthResult login(LoginCommand c) {
-        boolean hasEmail=c.email()!=null&&!c.email().isBlank(),hasDni=c.dni()!=null&&!c.dni().isBlank();
-        if (hasEmail==hasDni||c.role()==null) throw new IllegalArgumentException("Provide email or DNI, password and account role");
-        UserAccount account=null;
-        if (hasEmail) account=users.findByEmail(new Email(c.email()).value()).orElse(null);
-        else {
-            new Dni(c.dni());
-            Long id=patients.findByDni(c.dni()).map(Patient::getUserId)
-                    .orElseGet(()->staff.findByDni(c.dni()).map(StaffProfile::userId).orElse(null));
-            if (id!=null) account=users.findById(id).orElse(null);
-        }
+    public LoginChallengeResult startLogin(LoginCommand c) {
+        var account=users.findByEmail(new Email(c.email()).value()).orElse(null);
         boolean valid=hashing.matches(c.password(),account==null?dummyHash:account.getPassword());
-        if (!valid||account==null||!account.isActive()||account.getRole()!=c.role()) throw IamException.unauthorized();
+        if (!valid||account==null||!account.isActive()) throw IamException.unauthorized();
+        return loginChallenges.issue(account.getId(),account.getEmail().value());
+    }
+    public void sendVerificationCode(SendVerificationCodeCommand c) {
+        var email=new Email(c.email());
+        emailVerification.requestCode("registration",email.value(),"Verifica tu correo de SaludYa",
+                "Tu código para verificar tu correo en SaludYa es: {code}");
+    }
+    public AuthResult verifyLogin(VerifyLoginCommand c) {
+        Long userId=loginChallenges.consume(c.challengeId(),c.code());
+        var account=users.findById(userId).orElseThrow(IamException::unauthorized);
+        if(!account.isActive()) throw IamException.unauthorized();
         UUID id=UUID.randomUUID();Instant expires=clock.instant().plusMillis(expirationMs).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
         sessions.save(new UserSession(id,account.getId(),expires,null));
         return new AuthResult(tokens.issue(account,id,expires),"Bearer",expires,account.getId(),account.getRole(),
                 patients.findByUserId(account.getId()).map(Patient::getId).orElse(null));
     }
+    public void resendLoginCode(ResendLoginCodeCommand c) { loginChallenges.resend(c.challengeId()); }
     public void logout(LogoutCommand c) { sessions.revoke(c.sessionId(),clock.instant()); }
     public void recoverPassword(RecoverPasswordCommand c) { recovery.request(c.email()); }
     public void resetPassword(ResetPasswordCommand c) { recovery.reset(c.token(),c.password(),c.confirmPassword()); }

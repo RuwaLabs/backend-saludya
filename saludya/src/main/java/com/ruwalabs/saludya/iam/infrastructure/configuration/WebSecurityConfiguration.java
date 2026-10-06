@@ -42,9 +42,10 @@ public class WebSecurityConfiguration {
 
                         // Public IAM endpoints
                         .requestMatchers(HttpMethod.POST, "/api/v1/user-accounts", "/api/v1/user-accounts/login",
+                                "/api/v1/user-accounts/login/verify", "/api/v1/user-accounts/login/resend",
+                                "/api/v1/user-accounts/send-verification-code",
                                 "/api/v1/user-accounts/recover-password", "/api/v1/user-accounts/reset-password",
-                                "/api/v1/identity-verifications", "/api/v1/account-recovery-requests",
-                                "/api/v1/phone-verifications", "/api/v1/phone-verifications/confirm").permitAll()
+                                "/api/v1/identity-verifications/**", "/api/v1/account-recovery-requests").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/account-recovery-requests/support").permitAll()
 
                         // IAM administration

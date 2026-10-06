@@ -15,7 +15,7 @@ public class IdentityEventHandlers {
         users.findById(id).ifPresent(u->notifications.enqueue(u.getEmail().value(),subject,message));
     }
     @EventListener public void registered(PatientRegisteredEvent e) {
-        notify(e.userId(),"Bienvenido a SaludYa","Tu identidad fue verificada y tu cuenta de paciente está lista.");
+        notify(e.userId(),"Bienvenido a SaludYa","Tu correo fue verificado y tu cuenta de paciente está lista.");
         LOG.info("IAM patient registered: userId={}",e.userId());
     }
     @EventListener public void linked(MinorLinkedEvent e) {

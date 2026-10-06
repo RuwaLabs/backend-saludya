@@ -22,13 +22,23 @@ public class UserAccountsController {
     public UserAccountsController(UserAccountCommandService commands,UserAccountQueryService queries) {
         this.commands=commands;this.queries=queries;
     }
-    @PostMapping @SecurityRequirements @Operation(summary="Register a verified adult patient")
+    @PostMapping("/send-verification-code") @SecurityRequirements @Operation(summary="Send an email verification code before registering")
+    public ResponseEntity<Void> sendVerificationCode(@Valid @RequestBody SendVerificationCodeResource r) {
+        commands.sendVerificationCode(new SendVerificationCodeCommand(r.email())); return ResponseEntity.accepted().build();
+    }
+    @PostMapping @SecurityRequirements @Operation(summary="Register a verified adult patient using the emailed code")
     public ResponseEntity<PatientResource> register(@Valid @RequestBody RegisterPatientResource r) {
-        var p=commands.registerPatient(new RegisterPatientCommand(r.dni(),r.name(),r.lastname(),r.birthDate(),r.phone(),r.email(),r.password()));
+        var p=commands.registerPatient(new RegisterPatientCommand(r.dni(),r.name(),r.lastname(),r.birthDate(),r.phone(),r.email(),r.password(),r.code()));
         return ResponseEntity.created(URI.create("/api/v1/patients/"+p.getId())).body(PatientResourceAssembler.from(p));
     }
-    @PostMapping("/login") @SecurityRequirements @Operation(summary="Sign in using email or DNI and the selected account role")
-    public AuthResult login(@Valid @RequestBody LoginResource r) { return commands.login(new LoginCommand(r.email(),r.dni(),r.password(),r.role())); }
+    @PostMapping("/login") @SecurityRequirements @Operation(summary="Start sign-in: verify credentials and send an email code")
+    public LoginChallengeResult login(@Valid @RequestBody LoginResource r) { return commands.startLogin(new LoginCommand(r.email(),r.password())); }
+    @PostMapping("/login/verify") @SecurityRequirements @Operation(summary="Complete sign-in with the email verification code")
+    public AuthResult verifyLogin(@Valid @RequestBody VerifyLoginResource r) { return commands.verifyLogin(new VerifyLoginCommand(r.challengeId(),r.code())); }
+    @PostMapping("/login/resend") @SecurityRequirements @Operation(summary="Resend the email verification code for a login challenge")
+    public ResponseEntity<Void> resendLoginCode(@Valid @RequestBody ResendLoginResource r) {
+        commands.resendLoginCode(new ResendLoginCodeCommand(r.challengeId())); return ResponseEntity.accepted().build();
+    }
     @PostMapping("/logout") @Operation(summary="Revoke the current bearer session")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal IamPrincipal p) {
         commands.logout(new LogoutCommand(p.sessionId())); return ResponseEntity.noContent().build();
