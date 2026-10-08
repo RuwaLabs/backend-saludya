@@ -7,6 +7,7 @@ import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.domain.mode
 import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.domain.repositories.HospitalConfigurationRepository;
 import com.ruwalabs.saludya.hospitaloperations.hospitalconfiguration.infrastructure.reports.ReportGeneratorAdapter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ public class ConfigurationQueryServiceImpl
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public HospitalConfiguration getConfiguration() {
         return repository.findDefault()
                 .orElseThrow(() -> new IllegalStateException(
