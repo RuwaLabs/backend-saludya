@@ -7,11 +7,8 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 /**
  * Configures the OpenAPI specification exposed by SaludYa.
@@ -49,12 +46,8 @@ public class OpenApiConfiguration {
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")));
 
-        openApi.servers(List.of(
-                new Server()
-                        .url("http://localhost:8080")
-                        .description("Local Development Environment")
-        ));
-
+        // No explicit servers: Swagger UI resolves requests against the host that
+        // serves it, so "Try it out" works behind any host (localhost, public IP, domain).
         openApi
                 .addSecurityItem(new SecurityRequirement()
                         .addList(SECURITY_SCHEME_NAME))
