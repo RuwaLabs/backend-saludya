@@ -1,7 +1,7 @@
 package com.ruwalabs.saludya.iam.infrastructure.configuration;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.ruwalabs.saludya.iam.domain.model.aggregates.UserAccount;
 import com.ruwalabs.saludya.iam.domain.model.entities.StaffProfile;
 import com.ruwalabs.saludya.iam.domain.model.enums.Role;
