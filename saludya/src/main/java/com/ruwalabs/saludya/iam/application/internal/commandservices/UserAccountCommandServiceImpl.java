@@ -86,6 +86,9 @@ public class UserAccountCommandServiceImpl implements UserAccountCommandService 
     public void logout(LogoutCommand c) { sessions.revoke(c.sessionId(),clock.instant()); }
     public void recoverPassword(RecoverPasswordCommand c) { recovery.request(c.email()); }
     public void resetPassword(ResetPasswordCommand c) { recovery.reset(c.token(),c.password(),c.confirmPassword()); }
+    public PasswordRecoveryChallengeResult requestPasswordRecoveryCode(RequestPasswordRecoveryCodeCommand c) { return recovery.requestCode(c.email()); }
+    public PasswordResetGrantResult verifyPasswordRecoveryCode(VerifyPasswordRecoveryCodeCommand c) { return recovery.verifyRecoveryCode(c.challengeId(),c.code()); }
+    public void resetPasswordWithGrant(ResetPasswordWithGrantCommand c) { recovery.resetWithGrant(c.resetToken(),c.password(),c.confirmPassword()); }
     public void changePassword(ChangePasswordCommand c) {
         access.requireSelf(c.userId(),c.userId());
         var user=users.lockById(c.userId()).orElseThrow(IamException::notFound);

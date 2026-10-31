@@ -48,15 +48,16 @@ public class EmailVerificationService {
      * Generates a code and queues it to the recipient. The message body may contain a
      * {@code {code}} placeholder that is replaced with the generated value.
      */
-    public void requestCode(String purpose, String email, String subject, String message) {
+    public synchronized void requestCode(String purpose, String email, String subject, String message) {
         var code = "%06d".formatted(RANDOM.nextInt(1_000_000));
         codes.put(key(purpose, email), new Code(code, clock.instant().plus(TTL), 0));
         notifications.enqueue(email, subject, message.replace("{code}", code) + "\nEl código vence en 15 minutos.");
-        if (logCodes) log.info("[EMAIL][{}] verification code for {}: {}", purpose, email, code);
+        if (logCodes && !"password-recovery".equals(purpose))
+            log.info("[EMAIL][{}] verification code for {}: {}", purpose, email, code);
     }
 
     /** Validates a code, consuming it on success. */
-    public void verify(String purpose, String email, String code) {
+    public synchronized void verify(String purpose, String email, String code) {
         var key = key(purpose, email);
         var stored = codes.get(key);
         if (stored == null) throw invalidCode();

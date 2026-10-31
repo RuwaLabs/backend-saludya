@@ -325,6 +325,37 @@ class IamIntegrationTests {
         mvc.perform(get(ACCOUNTS+"/me").header("Authorization","Bearer "+session)).andExpect(status().isUnauthorized());
         login("lucia@example.test","Updated1!Password");
     }
+
+    @Test void emailCodeRecoveryVerifiesCodeBeforeAllowingPasswordReset() throws Exception {
+        var email="recovery-code-"+UUID.randomUUID()+"@example.test";
+        register(lucia(email));
+        var requested=body(postJson(ACCOUNTS+"/recover-password/code",Map.of("email",email),null)
+                .andExpect(status().isAccepted()));
+        var challengeId=text(requested,"$.challengeId");
+        var code=emailCode(email,"restablecer tu contraseña");
+        var wrongCode="000000".equals(code)?"000001":"000000";
+        postJson(ACCOUNTS+"/recover-password/code/verify",Map.of("challengeId",challengeId,"code",wrongCode),null)
+                .andExpect(status().isUnprocessableEntity());
+        var verified=body(postJson(ACCOUNTS+"/recover-password/code/verify",Map.of("challengeId",challengeId,"code",code),null)
+                .andExpect(status().isOk()));
+        var grant=text(verified,"$.resetToken");
+        postJson(ACCOUNTS+"/recover-password/code/reset",Map.of("resetToken",grant,
+                "password","Updated1!Password","confirmPassword","Updated1!Password"),null)
+                .andExpect(status().isNoContent());
+        postJson(ACCOUNTS+"/recover-password/code/reset",Map.of("resetToken",grant,
+                "password","Updated1!Password","confirmPassword","Updated1!Password"),null)
+                .andExpect(status().isUnprocessableEntity());
+        assertThat(login(email,"Updated1!Password")).isNotBlank();
+    }
+
+    @Test void recoveryCodeRequestDoesNotRevealUnknownEmails() throws Exception {
+        var response=body(postJson(ACCOUNTS+"/recover-password/code",Map.of("email","unknown@example.test"),null)
+                .andExpect(status().isAccepted()));
+        var challengeId=text(response,"$.challengeId");
+        assertThat(text(response,"$.maskedEmail")).isEqualTo("u***@example.test");
+        postJson(ACCOUNTS+"/recover-password/code/verify",Map.of("challengeId",challengeId,"code","123456"),null)
+                .andExpect(status().isUnprocessableEntity());
+    }
     @Test void recoveryLinkExpiresAfterExactlyFifteenMinutes() throws Exception {
         patient();var raw=recoveryToken("lucia@example.test");clock.advance(Duration.ofMinutes(15));
         postJson(ACCOUNTS+"/reset-password",resetBody(raw),null).andExpect(status().isUnprocessableEntity());

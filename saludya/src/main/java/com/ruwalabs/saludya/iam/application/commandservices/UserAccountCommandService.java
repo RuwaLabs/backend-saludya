@@ -12,6 +12,9 @@ public interface UserAccountCommandService {
     void logout(LogoutCommand command);
     void recoverPassword(RecoverPasswordCommand command);
     void resetPassword(ResetPasswordCommand command);
+    PasswordRecoveryChallengeResult requestPasswordRecoveryCode(RequestPasswordRecoveryCodeCommand command);
+    PasswordResetGrantResult verifyPasswordRecoveryCode(VerifyPasswordRecoveryCodeCommand command);
+    void resetPasswordWithGrant(ResetPasswordWithGrantCommand command);
     void changePassword(ChangePasswordCommand command);
     AccountProfile updateProfile(UpdateProfileCommand command);
     AccountProfile createStaffAccount(CreateStaffAccountCommand command);

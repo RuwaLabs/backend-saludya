@@ -48,6 +48,19 @@ public class UserAccountsController {
         commands.recoverPassword(new RecoverPasswordCommand(r.email()));
         return ResponseEntity.accepted().body(Map.of("message","If an active account exists, a recovery email will be sent."));
     }
+    @PostMapping("/recover-password/code") @SecurityRequirements @Operation(summary="Send an email code to start in-app password recovery")
+    public ResponseEntity<PasswordRecoveryChallengeResult> requestRecoveryCode(@Valid @RequestBody RecoverPasswordResource r) {
+        return ResponseEntity.accepted().body(commands.requestPasswordRecoveryCode(new RequestPasswordRecoveryCodeCommand(r.email())));
+    }
+    @PostMapping("/recover-password/code/verify") @SecurityRequirements @Operation(summary="Verify the emailed recovery code")
+    public PasswordResetGrantResult verifyRecoveryCode(@Valid @RequestBody VerifyPasswordRecoveryCodeResource r) {
+        return commands.verifyPasswordRecoveryCode(new VerifyPasswordRecoveryCodeCommand(r.challengeId(),r.code()));
+    }
+    @PostMapping("/recover-password/code/reset") @SecurityRequirements @Operation(summary="Set a new password after verifying the emailed code")
+    public ResponseEntity<Void> resetWithRecoveryGrant(@Valid @RequestBody ResetPasswordWithGrantResource r) {
+        commands.resetPasswordWithGrant(new ResetPasswordWithGrantCommand(r.resetToken(),r.password(),r.confirmPassword()));
+        return ResponseEntity.noContent().build();
+    }
     @PostMapping("/reset-password") @SecurityRequirements @Operation(summary="Redeem a recovery link and revoke previous sessions")
     public ResponseEntity<Void> reset(@Valid @RequestBody ResetPasswordResource r) {
         commands.resetPassword(new ResetPasswordCommand(r.token(),r.password(),r.confirmPassword()));
