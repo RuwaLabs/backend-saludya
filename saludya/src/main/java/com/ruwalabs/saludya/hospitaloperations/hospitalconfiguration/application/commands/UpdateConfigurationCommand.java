@@ -9,6 +9,7 @@ import java.time.LocalTime;
  */
 public record UpdateConfigurationCommand(
         int maxCapacityPerSlot,
+        Integer intervalDurationMinutes,
         BookingOrderScope bookingOrderScope,
         int checkInToleranceMinutes,
         int postCallToleranceMinutes,

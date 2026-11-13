@@ -30,12 +30,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Application service that executes check-in and absence commands.
  */
 @Service
 public class CheckInCommandServiceImpl implements CheckInCommandService {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Lima");
 
     private final CheckInRepository checkInRepository;
     private final AttendanceQueueRepository attendanceQueueRepository;
@@ -116,7 +121,7 @@ public class CheckInCommandServiceImpl implements CheckInCommandService {
         var checkIn = checkInRepository.save(
                 CheckInFactory.createCheckIn(appointmentId, qrReference));
 
-        var today = LocalDate.now();
+        var today = LocalDate.now(BUSINESS_ZONE);
         var queue = attendanceQueueRepository.findByTimeSlotAndDate(info.timeSlotId(), today)
                 .orElseGet(() -> attendanceQueueRepository.save(
                         AttendanceQueue.open(info.timeSlotId(), today)));
@@ -206,6 +211,90 @@ public class CheckInCommandServiceImpl implements CheckInCommandService {
                     entry.getId(), appointmentId, freedTimeSlotId, Instant.now()));
         }
         return entries.size();
+    }
+
+    @Override
+    @Transactional
+    public int closeExpiredQueues() {
+        var now = Instant.now();
+        var today = LocalDate.now(BUSINESS_ZONE);
+        var appointments = appointmentLookupService.findAppointmentsByDate(today);
+        Map<Long, AppointmentInfo> slotAppointments = new LinkedHashMap<>();
+        int absences = 0;
+
+        for (var appointment : appointments) {
+            slotAppointments.putIfAbsent(appointment.timeSlotId(), appointment);
+            if (appointment.slotStart() == null
+                    || "CANCELLED".equals(appointment.slotStatus())
+                    || !isActiveAppointment(appointment.status())) {
+                continue;
+            }
+
+            var arrivalDeadline = appointment.slotStart()
+                    .plusSeconds(hospitalConfigurationService.checkInToleranceMinutes() * 60L);
+            if (!now.isAfter(arrivalDeadline)
+                    || checkInRepository.existsByAppointmentId(appointment.appointmentId())) {
+                continue;
+            }
+
+            appointmentLookupService.markAbsent(appointment.appointmentId());
+            eventPublisher.publishEvent(new PatientAbsentEvent(
+                    null, appointment.appointmentId(), appointment.timeSlotId(), now));
+            absences++;
+        }
+
+        int closedQueues = 0;
+        for (var item : slotAppointments.entrySet()) {
+            var slotId = item.getKey();
+            var slot = item.getValue();
+            if (slot.slotEnd() == null || "CANCELLED".equals(slot.slotStatus())) {
+                continue;
+            }
+            var closeDeadline = slot.slotEnd()
+                    .plusSeconds(hospitalConfigurationService.checkInToleranceMinutes() * 60L);
+            if (!now.isAfter(closeDeadline)) {
+                continue;
+            }
+
+            var queue = attendanceQueueRepository.findByTimeSlotAndDate(slotId, today);
+            if (queue.isEmpty() || !queue.get().isOpen()) {
+                continue;
+            }
+
+            var entries = queueEntryRepository.findByAttendanceQueueOrderByPosition(queue.get().getId());
+            for (var entry : entries) {
+                if (entry.getStatus() != QueueEntryStatus.WAITING
+                        && entry.getStatus() != QueueEntryStatus.CALLED) {
+                    continue;
+                }
+                entry.markAsAbsent();
+                queueEntryRepository.save(entry);
+                checkInRepository.findById(entry.getIdCheckIn())
+                        .map(com.ruwalabs.saludya.arrivalcheckin.domain.model.aggregates.CheckIn::getIdAppointment)
+                        .ifPresent(appointmentId -> {
+                            appointmentLookupService.markAbsent(appointmentId);
+                            eventPublisher.publishEvent(new PatientAbsentEvent(
+                                    entry.getId(), appointmentId, slotId, now));
+                        });
+                absences++;
+            }
+
+            boolean hasUnfinishedAttention = entries.stream().anyMatch(entry ->
+                    entry.getStatus() == QueueEntryStatus.WAITING
+                            || entry.getStatus() == QueueEntryStatus.CALLED
+                            || entry.getStatus() == QueueEntryStatus.IN_ATTENTION);
+            if (!hasUnfinishedAttention) {
+                queue.get().close();
+                attendanceQueueRepository.save(queue.get());
+                closedQueues++;
+            }
+        }
+
+        return absences + closedQueues;
+    }
+
+    private boolean isActiveAppointment(String status) {
+        return "RESERVED".equals(status) || "CONFIRMED".equals(status);
     }
 
     @Override

@@ -19,5 +19,7 @@ public interface TimeSlotRepository {
 
     List<TimeSlot> findByDoctorAndDate(Long doctorId, LocalDate date);
 
+    List<TimeSlot> findBySpecialtyAndDateRange(Long specialtyId, LocalDate from, LocalDate to);
+
     boolean existsById(Long id);
 }

@@ -21,6 +21,7 @@ public class ConfigurationResourceAssembler {
         return new ConfigurationResource(
                 configuration.getId(),
                 configuration.getMaxCapacityPerSlot(),
+                configuration.getIntervalDurationMinutes(),
                 configuration.getBookingOrderScope().name(),
                 configuration.getCheckInToleranceMinutes(),
                 configuration.getPostCallToleranceMinutes(),

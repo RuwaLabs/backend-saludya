@@ -6,6 +6,8 @@ import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.List;
+import java.time.LocalDate;
 
 /**
  * Real ACL adapter for {@link AppointmentLookupService} backed by the
@@ -32,6 +34,13 @@ public class BookingAppointmentLookupService implements AppointmentLookupService
                 .map(this::toArrivalInfo);
     }
 
+    @Override
+    public List<AppointmentInfo> findAppointmentsByDate(LocalDate date) {
+        return bookingContextFacade.findAppointmentsByDate(date).stream()
+                .map(this::toArrivalInfo)
+                .toList();
+    }
+
     private AppointmentInfo toArrivalInfo(BookingContextFacade.AppointmentInfo info) {
         return new AppointmentInfo(
                 info.id(),
@@ -39,6 +48,8 @@ public class BookingAppointmentLookupService implements AppointmentLookupService
                 info.patientId(),
                 info.status(),
                 info.slotStart(),
+                info.slotEnd(),
+                info.slotStatus(),
                 info.bookingCode(),
                 info.specialtyName(),
                 info.doctorName(),

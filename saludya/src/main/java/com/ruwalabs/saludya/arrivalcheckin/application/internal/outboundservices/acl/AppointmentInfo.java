@@ -21,6 +21,8 @@ public record AppointmentInfo(
         Long patientId,
         String status,
         Instant slotStart,
+        Instant slotEnd,
+        String slotStatus,
         String bookingCode,
         String specialtyName,
         String doctorName,

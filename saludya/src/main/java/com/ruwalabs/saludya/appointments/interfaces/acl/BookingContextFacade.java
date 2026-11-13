@@ -32,6 +32,8 @@ public class BookingContextFacade {
      * @param patientId  the patient identifier
      * @param status     the appointment status
      * @param slotStart  the instant the time slot starts (nullable)
+     * @param slotEnd    the instant the time slot ends (nullable)
+     * @param slotStatus the current time slot status
      */
     public record AppointmentInfo(
             Long id,
@@ -39,6 +41,8 @@ public class BookingContextFacade {
             Long patientId,
             String status,
             Instant slotStart,
+            Instant slotEnd,
+            String slotStatus,
             String bookingCode,
             String specialtyName,
             String doctorName,
@@ -169,6 +173,9 @@ public class BookingContextFacade {
         var slotStart = timeSlot == null
                 ? null
                 : timeSlot.getDate().atTime(timeSlot.getStartHour()).atZone(ZONE).toInstant();
+        var slotEnd = timeSlot == null
+                ? null
+                : timeSlot.getDate().atTime(timeSlot.getEndHour()).atZone(ZONE).toInstant();
         String room = timeSlot == null ? null : timeSlot.getRoom();
         String specialtyName = null;
         String doctorName = null;
@@ -187,6 +194,8 @@ public class BookingContextFacade {
                 appointment.getPatientId(),
                 appointment.getStatus().name(),
                 slotStart,
+                slotEnd,
+                timeSlot == null ? null : timeSlot.getStatus().name(),
                 appointment.getBookingCode(),
                 specialtyName,
                 doctorName,

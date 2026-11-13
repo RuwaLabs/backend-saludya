@@ -3,6 +3,7 @@ package com.ruwalabs.saludya.appointments.interfaces.rest;
 import com.ruwalabs.saludya.appointments.application.commandservices.TimeSlotCommandService;
 import com.ruwalabs.saludya.appointments.application.queryservices.TimeSlotQueryService;
 import com.ruwalabs.saludya.appointments.application.queries.GetAvailableTimeSlotsBySpecialtyQuery;
+import com.ruwalabs.saludya.appointments.application.queries.GetCalendarTimeSlotsQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotByIdQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotsByDoctorAndDateQuery;
 import com.ruwalabs.saludya.appointments.interfaces.rest.resources.CreateTimeSlotResource;
@@ -63,6 +64,21 @@ public class TimeSlotsController {
                 .map(TimeSlotResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/calendar")
+    @Operation(summary = "List all time blocks for a specialty within a calendar date range")
+    public ResponseEntity<List<TimeSlotResource>> getCalendarSlots(
+            @RequestParam Long specialtyId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from.isAfter(to)) {
+            return ResponseEntity.badRequest().build();
+        }
+        var timeSlots = queryService.getCalendarSlots(new GetCalendarTimeSlotsQuery(specialtyId, from, to));
+        return ResponseEntity.ok(timeSlots.stream()
+                .map(TimeSlotResourceFromEntityAssembler::toResourceFromEntity)
+                .toList());
     }
 
     @GetMapping

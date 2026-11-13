@@ -53,6 +53,7 @@ public class ConfigurationController {
         UpdateConfigurationCommand command =
                 new UpdateConfigurationCommand(
                         resource.maxCapacityPerSlot(),
+                        resource.intervalDurationMinutes(),
                         resource.bookingOrderScope(),
                         resource.checkInToleranceMinutes(),
                         resource.postCallToleranceMinutes(),

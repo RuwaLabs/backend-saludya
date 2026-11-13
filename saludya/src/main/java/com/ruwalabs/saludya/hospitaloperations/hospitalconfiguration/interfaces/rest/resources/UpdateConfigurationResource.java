@@ -9,6 +9,7 @@ import java.time.LocalTime;
  */
 public record UpdateConfigurationResource(
         int maxCapacityPerSlot,
+        @jakarta.validation.constraints.Positive Integer intervalDurationMinutes,
         BookingOrderScope bookingOrderScope,
         int checkInToleranceMinutes,
         int postCallToleranceMinutes,

@@ -2,6 +2,7 @@ package com.ruwalabs.saludya.appointments.application.internal.queryservices;
 
 import com.ruwalabs.saludya.appointments.application.queryservices.TimeSlotQueryService;
 import com.ruwalabs.saludya.appointments.application.queries.GetAvailableTimeSlotsBySpecialtyQuery;
+import com.ruwalabs.saludya.appointments.application.queries.GetCalendarTimeSlotsQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotByIdQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotsByDoctorAndDateQuery;
 import com.ruwalabs.saludya.appointments.domain.model.aggregates.TimeSlot;
@@ -38,5 +39,13 @@ public class TimeSlotQueryServiceImpl implements TimeSlotQueryService {
     @Override
     public List<TimeSlot> getByDoctorAndDate(GetTimeSlotsByDoctorAndDateQuery query) {
         return repository.findByDoctorAndDate(query.doctorId(), query.date());
+    }
+
+    @Override
+    public List<TimeSlot> getCalendarSlots(GetCalendarTimeSlotsQuery query) {
+        if (query.from().isAfter(query.to())) {
+            throw new IllegalArgumentException("The calendar start date must not be after its end date");
+        }
+        return repository.findBySpecialtyAndDateRange(query.specialtyId(), query.from(), query.to());
     }
 }

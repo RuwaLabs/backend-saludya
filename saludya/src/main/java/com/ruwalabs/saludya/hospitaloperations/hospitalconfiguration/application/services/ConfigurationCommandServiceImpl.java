@@ -48,6 +48,10 @@ public class ConfigurationCommandServiceImpl
                 command.maxCapacityPerSlot()
         );
 
+        if (command.intervalDurationMinutes() != null) {
+            configuration.updateIntervalDuration(command.intervalDurationMinutes());
+        }
+
         configuration.updateBookingOrderScope(
                 command.bookingOrderScope()
         );

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record ConfigurationResource(
         Long id,
         int maxCapacityPerSlot,
+        int intervalDurationMinutes,
         String bookingOrderScope,
         int checkInToleranceMinutes,
         int postCallToleranceMinutes,

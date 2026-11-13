@@ -27,6 +27,9 @@ public interface CheckInCommandService {
      */
     int detectAbsences();
 
+    /** Marks reservations left behind after the check-in deadline absent and closes finished queues. */
+    int closeExpiredQueues();
+
     /**
      * Starts the attention of a called queue entry.
      *

@@ -23,6 +23,9 @@ public class HospitalConfigurationEntity {
     )
     private int maxCapacityPerSlot;
 
+    @Column(name = "interval_duration_minutes", nullable = false)
+    private int intervalDurationMinutes;
+
     @Enumerated(EnumType.STRING)
     @Column(
             name = "booking_order_scope",
@@ -80,6 +83,7 @@ public class HospitalConfigurationEntity {
     public HospitalConfigurationEntity(
             Long id,
             int maxCapacityPerSlot,
+            int intervalDurationMinutes,
             BookingOrderScope bookingOrderScope,
             int checkInToleranceMinutes,
             int postCallToleranceMinutes,
@@ -91,6 +95,7 @@ public class HospitalConfigurationEntity {
     ) {
         this.id = id;
         this.maxCapacityPerSlot = maxCapacityPerSlot;
+        this.intervalDurationMinutes = intervalDurationMinutes;
         this.bookingOrderScope = bookingOrderScope;
         this.checkInToleranceMinutes = checkInToleranceMinutes;
         this.postCallToleranceMinutes = postCallToleranceMinutes;
@@ -108,6 +113,10 @@ public class HospitalConfigurationEntity {
 
     public int getMaxCapacityPerSlot() {
         return maxCapacityPerSlot;
+    }
+
+    public int getIntervalDurationMinutes() {
+        return intervalDurationMinutes;
     }
 
     public BookingOrderScope getBookingOrderScope() {

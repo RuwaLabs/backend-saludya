@@ -51,6 +51,13 @@ public class TimeSlotPersistenceAdapter implements TimeSlotRepository {
     }
 
     @Override
+    public List<TimeSlot> findBySpecialtyAndDateRange(Long specialtyId, LocalDate from, LocalDate to) {
+        return repository.findCalendarSlotsBySpecialtyAndDateRange(specialtyId, from, to).stream()
+                .map(TimeSlotPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return repository.existsById(id);
     }

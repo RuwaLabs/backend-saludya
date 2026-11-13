@@ -65,6 +65,7 @@ public class HospitalConfigurationRepositoryImpl
                 new HospitalConfigurationEntity(
                         existing.getId(),
                         configuration.getMaxCapacityPerSlot(),
+                        configuration.getIntervalDurationMinutes(),
                         configuration.getBookingOrderScope(),
                         configuration.getCheckInToleranceMinutes(),
                         configuration.getPostCallToleranceMinutes(),
@@ -84,6 +85,7 @@ public class HospitalConfigurationRepositoryImpl
         return new HospitalConfigurationEntity(
                 configuration.getId(),
                 configuration.getMaxCapacityPerSlot(),
+                configuration.getIntervalDurationMinutes(),
                 configuration.getBookingOrderScope(),
                 configuration.getCheckInToleranceMinutes(),
                 configuration.getPostCallToleranceMinutes(),
@@ -101,6 +103,7 @@ public class HospitalConfigurationRepositoryImpl
         return HospitalConfiguration.reconstitute(
                 entity.getId(),
                 entity.getMaxCapacityPerSlot(),
+                entity.getIntervalDurationMinutes(),
                 entity.getBookingOrderScope(),
                 entity.getCheckInToleranceMinutes(),
                 entity.getPostCallToleranceMinutes(),

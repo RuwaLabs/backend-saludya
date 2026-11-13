@@ -1,6 +1,8 @@
 package com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices.acl;
 
 import java.util.Optional;
+import java.util.List;
+import java.time.LocalDate;
 
 /**
  * ACL port for reading and updating appointment data owned by the
@@ -23,6 +25,8 @@ public interface AppointmentLookupService {
      * @return the appointment info, if present
      */
     Optional<AppointmentInfo> findByBookingCode(String bookingCode);
+
+    List<AppointmentInfo> findAppointmentsByDate(LocalDate date);
 
     /**
      * Marks the appointment as present (confirmed) after a successful check-in.

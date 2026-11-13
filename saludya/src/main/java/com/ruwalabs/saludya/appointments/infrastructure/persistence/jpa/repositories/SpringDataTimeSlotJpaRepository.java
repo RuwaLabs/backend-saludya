@@ -31,4 +31,17 @@ public interface SpringDataTimeSlotJpaRepository extends JpaRepository<TimeSlotJ
     );
 
     List<TimeSlotJpaEntity> findByDoctorIdAndDate(Long doctorId, LocalDate date);
+
+    @Query("""
+            SELECT ts
+            FROM TimeSlotJpaEntity ts, DoctorJpaEntity d
+            WHERE ts.doctorId = d.id
+              AND d.specialtyId = :specialtyId
+              AND ts.date BETWEEN :from AND :to
+            ORDER BY ts.date, ts.startHour
+            """)
+    List<TimeSlotJpaEntity> findCalendarSlotsBySpecialtyAndDateRange(
+            @Param("specialtyId") Long specialtyId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
 }

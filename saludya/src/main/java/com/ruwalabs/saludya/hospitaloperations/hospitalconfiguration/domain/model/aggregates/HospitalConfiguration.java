@@ -18,6 +18,8 @@ public class HospitalConfiguration
 
     private int maxCapacityPerSlot;
 
+    private int intervalDurationMinutes;
+
     private BookingOrderScope bookingOrderScope;
 
     private int checkInToleranceMinutes;
@@ -37,6 +39,7 @@ public class HospitalConfiguration
     private HospitalConfiguration(
             Long id,
             int maxCapacityPerSlot,
+            int intervalDurationMinutes,
             BookingOrderScope bookingOrderScope,
             int checkInToleranceMinutes,
             int postCallToleranceMinutes,
@@ -48,6 +51,7 @@ public class HospitalConfiguration
     ) {
         this.id = id;
         this.maxCapacityPerSlot = maxCapacityPerSlot;
+        this.intervalDurationMinutes = intervalDurationMinutes;
         this.bookingOrderScope = bookingOrderScope;
         this.checkInToleranceMinutes = checkInToleranceMinutes;
         this.postCallToleranceMinutes = postCallToleranceMinutes;
@@ -73,9 +77,26 @@ public class HospitalConfiguration
             int cancellationDeadlineHours,
             boolean attendanceQueueVisible
     ) {
+        return create(maxCapacityPerSlot, 30, bookingOrderScope, checkInToleranceMinutes,
+                postCallToleranceMinutes, reassignmentResponseTimeoutMin, bookingCutoffTime,
+                cancellationDeadlineHours, attendanceQueueVisible);
+    }
+
+    public static HospitalConfiguration create(
+            int maxCapacityPerSlot,
+            int intervalDurationMinutes,
+            BookingOrderScope bookingOrderScope,
+            int checkInToleranceMinutes,
+            int postCallToleranceMinutes,
+            int reassignmentResponseTimeoutMin,
+            LocalTime bookingCutoffTime,
+            int cancellationDeadlineHours,
+            boolean attendanceQueueVisible
+    ) {
         return new HospitalConfiguration(
                 null,
                 maxCapacityPerSlot,
+                intervalDurationMinutes,
                 bookingOrderScope,
                 checkInToleranceMinutes,
                 postCallToleranceMinutes,
@@ -102,9 +123,28 @@ public class HospitalConfiguration
             boolean attendanceQueueVisible,
             LocalDateTime updatedAt
     ) {
+        return reconstitute(id, maxCapacityPerSlot, 30, bookingOrderScope, checkInToleranceMinutes,
+                postCallToleranceMinutes, reassignmentResponseTimeoutMin, bookingCutoffTime,
+                cancellationDeadlineHours, attendanceQueueVisible, updatedAt);
+    }
+
+    public static HospitalConfiguration reconstitute(
+            Long id,
+            int maxCapacityPerSlot,
+            int intervalDurationMinutes,
+            BookingOrderScope bookingOrderScope,
+            int checkInToleranceMinutes,
+            int postCallToleranceMinutes,
+            int reassignmentResponseTimeoutMin,
+            LocalTime bookingCutoffTime,
+            int cancellationDeadlineHours,
+            boolean attendanceQueueVisible,
+            LocalDateTime updatedAt
+    ) {
         return new HospitalConfiguration(
                 id,
                 maxCapacityPerSlot,
+                intervalDurationMinutes,
                 bookingOrderScope,
                 checkInToleranceMinutes,
                 postCallToleranceMinutes,
@@ -120,6 +160,12 @@ public class HospitalConfiguration
         validatePositive(value, "Maximum capacity per slot");
 
         this.maxCapacityPerSlot = value;
+        touch();
+    }
+
+    public void updateIntervalDuration(int value) {
+        validatePositive(value, "Interval duration");
+        this.intervalDurationMinutes = value;
         touch();
     }
 
@@ -195,6 +241,8 @@ public class HospitalConfiguration
                 "Maximum capacity per slot"
         );
 
+        validatePositive(intervalDurationMinutes, "Interval duration");
+
         Objects.requireNonNull(
                 bookingOrderScope,
                 "Booking order scope cannot be null"
@@ -257,6 +305,10 @@ public class HospitalConfiguration
 
     public int getMaxCapacityPerSlot() {
         return maxCapacityPerSlot;
+    }
+
+    public int getIntervalDurationMinutes() {
+        return intervalDurationMinutes;
     }
 
     public BookingOrderScope getBookingOrderScope() {

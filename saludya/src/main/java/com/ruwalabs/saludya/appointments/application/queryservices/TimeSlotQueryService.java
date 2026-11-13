@@ -1,6 +1,7 @@
 package com.ruwalabs.saludya.appointments.application.queryservices;
 
 import com.ruwalabs.saludya.appointments.application.queries.GetAvailableTimeSlotsBySpecialtyQuery;
+import com.ruwalabs.saludya.appointments.application.queries.GetCalendarTimeSlotsQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotByIdQuery;
 import com.ruwalabs.saludya.appointments.application.queries.GetTimeSlotsByDoctorAndDateQuery;
 import com.ruwalabs.saludya.appointments.domain.model.aggregates.TimeSlot;
@@ -18,4 +19,6 @@ public interface TimeSlotQueryService {
     List<TimeSlot> getAvailableBySpecialty(GetAvailableTimeSlotsBySpecialtyQuery query);
 
     List<TimeSlot> getByDoctorAndDate(GetTimeSlotsByDoctorAndDateQuery query);
+
+    List<TimeSlot> getCalendarSlots(GetCalendarTimeSlotsQuery query);
 }

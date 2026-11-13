@@ -28,5 +28,9 @@ public class AbsenceDetectionScheduler {
         if (detected > 0) {
             log.info("Absence detection marked {} queue entries as absent", detected);
         }
+        var cutoffChanges = checkInCommandService.closeExpiredQueues();
+        if (cutoffChanges > 0) {
+            log.info("Arrival cutoff applied {} absence/closure changes", cutoffChanges);
+        }
     }
 }

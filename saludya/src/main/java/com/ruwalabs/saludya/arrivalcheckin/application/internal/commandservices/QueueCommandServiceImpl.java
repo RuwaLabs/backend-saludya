@@ -6,6 +6,7 @@ import com.ruwalabs.saludya.arrivalcheckin.application.internal.outboundservices
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.entities.QueueEntry;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.events.PatientCalledEvent;
 import com.ruwalabs.saludya.arrivalcheckin.domain.model.valueobjects.QueueEntryStatus;
+import com.ruwalabs.saludya.arrivalcheckin.domain.repositories.AttendanceQueueRepository;
 import com.ruwalabs.saludya.arrivalcheckin.domain.repositories.QueueEntryRepository;
 import com.ruwalabs.saludya.shared.application.result.ApplicationError;
 import com.ruwalabs.saludya.shared.application.result.Result;
@@ -20,14 +21,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class QueueCommandServiceImpl implements QueueCommandService {
 
     private final QueueEntryRepository queueEntryRepository;
+    private final AttendanceQueueRepository attendanceQueueRepository;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
     public QueueCommandServiceImpl(
             QueueEntryRepository queueEntryRepository,
+            AttendanceQueueRepository attendanceQueueRepository,
             NotificationService notificationService,
             ApplicationEventPublisher eventPublisher) {
         this.queueEntryRepository = queueEntryRepository;
+        this.attendanceQueueRepository = attendanceQueueRepository;
         this.notificationService = notificationService;
         this.eventPublisher = eventPublisher;
     }
@@ -35,6 +39,25 @@ public class QueueCommandServiceImpl implements QueueCommandService {
     @Override
     @Transactional
     public Result<QueueEntry, ApplicationError> callNextPatient(CallNextPatientCommand command) {
+        var queue = attendanceQueueRepository.findById(command.attendanceQueueId());
+        if (queue.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "AttendanceQueue", command.attendanceQueueId().toString()));
+        }
+        if (!queue.get().isOpen()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "attendance-queue-closed", "This attendance queue is closed"));
+        }
+        boolean hasPatientCalledOrInAttention = queueEntryRepository
+                .findByAttendanceQueueOrderByPosition(command.attendanceQueueId())
+                .stream()
+                .anyMatch(entry -> entry.getStatus() == QueueEntryStatus.CALLED
+                        || entry.getStatus() == QueueEntryStatus.IN_ATTENTION);
+        if (hasPatientCalledOrInAttention) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "attendance-in-progress", "Finish or resolve the current patient before calling the next one"));
+        }
+
         var entry = queueEntryRepository.findFirstByQueueAndStatusOrderByPosition(
                 command.attendanceQueueId(), QueueEntryStatus.WAITING);
         if (entry.isEmpty()) {
