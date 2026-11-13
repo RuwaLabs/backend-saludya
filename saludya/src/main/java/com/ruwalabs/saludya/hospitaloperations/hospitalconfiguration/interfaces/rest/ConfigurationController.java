@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 
 /**
@@ -76,7 +77,7 @@ public class ConfigurationController {
     ) {
         LocalDate dashboardDate =
                 Optional.ofNullable(date)
-                        .orElse(LocalDate.now());
+                        .orElse(LocalDate.now(ZoneId.of("America/Lima")));
 
         GetDashboardQuery query =
                 new GetDashboardQuery(dashboardDate);

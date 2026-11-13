@@ -6,8 +6,9 @@ import com.ruwalabs.saludya.appointments.domain.model.valueobjects.TimeSlotStatu
 import com.ruwalabs.saludya.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Objects;
 
 /**
@@ -15,6 +16,8 @@ import java.util.Objects;
  * date. Controls its capacity and availability state.
  */
 public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Lima");
 
     private Long id;
     private Long doctorId;
@@ -181,7 +184,10 @@ public class TimeSlot extends AbstractDomainAggregateRoot<TimeSlot> {
      * Returns {@code true} when the slot's end time has already passed.
      */
     public boolean isExpired() {
-        return LocalDateTime.of(date, endHour).isBefore(LocalDateTime.now());
+        return date.atTime(endHour)
+                .atZone(BUSINESS_ZONE)
+                .toInstant()
+                .isBefore(Instant.now());
     }
 
     /**
