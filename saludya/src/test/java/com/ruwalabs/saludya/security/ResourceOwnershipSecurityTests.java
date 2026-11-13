@@ -39,7 +39,9 @@ import java.util.regex.Pattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Cross-patient ownership (IDOR) regression tests.
@@ -132,6 +134,15 @@ class ResourceOwnershipSecurityTests {
         return login("admin@example.test", PASSWORD);
     }
 
+    private String admissionStaff() throws Exception {
+        tx.executeWithoutResult(s -> {
+            var a = users.save(new UserAccount(null, new Email("admission@example.test"), hashing.hash(PASSWORD), Role.ADMISSION_STAFF, true, Instant.now()));
+            claims.claim("30000002", a.getId());
+            staff.save(new StaffProfile(null, a.getId(), new Dni("30000002"), "Ana", "Rojas", LocalDate.parse("1985-03-12"), "987654322"));
+        });
+        return login("admission@example.test", PASSWORD);
+    }
+
     private Long patientId(String token) throws Exception {
         return id(body(mvc.perform(get(ACCOUNTS + "/me").header("Authorization", "Bearer " + token)).andExpect(status().isOk())), "$.patientId");
     }
@@ -220,5 +231,35 @@ class ResourceOwnershipSecurityTests {
         mvc.perform(post(OFFERS + "/" + offerId + "/reject").header("Authorization", "Bearer " + a)).andExpect(status().isForbidden());
 
         mvc.perform(post(OFFERS + "/" + offerId + "/accept").header("Authorization", "Bearer " + b)).andExpect(status().isOk());
+    }
+
+    @Test void admissionStaffCanUpdateGlobalConfiguration() throws Exception {
+        var token = admissionStaff();
+        var original = body(mvc.perform(get("/api/v1/config").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()));
+        var originalTimeout = ((Number) JsonPath.read(original, "$.reassignmentResponseTimeoutMin")).intValue();
+        var changedTimeout = originalTimeout == 11 ? 12 : 11;
+        var update = new HashMap<String, Object>();
+        update.put("maxCapacityPerSlot", JsonPath.read(original, "$.maxCapacityPerSlot"));
+        update.put("intervalDurationMinutes", JsonPath.read(original, "$.intervalDurationMinutes"));
+        update.put("bookingOrderScope", JsonPath.read(original, "$.bookingOrderScope"));
+        update.put("checkInToleranceMinutes", JsonPath.read(original, "$.checkInToleranceMinutes"));
+        update.put("postCallToleranceMinutes", JsonPath.read(original, "$.postCallToleranceMinutes"));
+        update.put("reassignmentResponseTimeoutMin", changedTimeout);
+        update.put("bookingCutoffTime", JsonPath.read(original, "$.bookingCutoffTime"));
+        update.put("cancellationDeadlineHours", JsonPath.read(original, "$.cancellationDeadlineHours"));
+        update.put("attendanceQueueVisible", JsonPath.read(original, "$.attendanceQueueVisible"));
+
+        try {
+            var changed = body(mvc.perform(put("/api/v1/config").header("Authorization", "Bearer " + token)
+                    .contentType("application/json").content(json.writeValueAsString(update)))
+                    .andExpect(status().isOk()));
+            assertThat(JsonPath.<Number>read(changed, "$.reassignmentResponseTimeoutMin").intValue()).isEqualTo(changedTimeout);
+        } finally {
+            update.put("reassignmentResponseTimeoutMin", originalTimeout);
+            mvc.perform(put("/api/v1/config").header("Authorization", "Bearer " + token)
+                    .contentType("application/json").content(json.writeValueAsString(update)))
+                    .andExpect(status().isOk());
+        }
     }
 }

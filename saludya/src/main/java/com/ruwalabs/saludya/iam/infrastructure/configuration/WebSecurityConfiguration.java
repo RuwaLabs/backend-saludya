@@ -68,7 +68,7 @@ public class WebSecurityConfiguration {
 
                         // Hospital Operations & Configuration
                         .requestMatchers(HttpMethod.PUT, "/api/v1/config/**", "/api/v1/hospital-configurations/**",
-                                "/api/v1/configurations/**").hasRole("SUPER_ADMIN")
+                                "/api/v1/configurations/**").hasAnyRole("ADMISSION_STAFF", "SUPER_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/config/**", "/api/v1/hospital-configurations/**",
                                 "/api/v1/configurations/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/v1/config/**", "/api/v1/hospital-configurations/**", "/api/v1/configurations/**")
